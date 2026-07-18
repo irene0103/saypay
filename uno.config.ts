@@ -77,8 +77,11 @@ export default defineConfig({
     'btn-secondary': 'btn-base bg-surface text-sage-700 border border-sage-300 hover:bg-sage-50',
     'btn-ghost': 'btn-base bg-transparent text-text-secondary hover:bg-surface-alt',
     'btn-danger': 'btn-base bg-transparent text-payable border border-payable',
+    // text-base (16px) is deliberate: iOS Safari zooms the page when focusing any input
+    // whose font-size is under 16px, which is what forced the user to pinch back out after
+    // typing. Keeping every field at 16px removes the zoom AND reads larger on phones.
     input:
-      'h-11 px-3 rounded-md bg-surface-alt border border-border-strong text-text placeholder:text-text-tertiary focus:(border-sage-500 outline-none ring-2 ring-sage-100)',
+      'h-11 px-3 rounded-md bg-surface-alt border border-border-strong text-base text-text placeholder:text-text-tertiary focus:(border-sage-500 outline-none ring-2 ring-sage-100)',
     // Money must never jitter as digits change (design-system.md §2.1).
     money: 'font-num tabular-nums',
   },

@@ -58,6 +58,18 @@ a {
   text-decoration: none;
 }
 
+/* type="number" gives phones the numeric keypad; the desktop spinner arrows would clash
+   with the large centred amount display, so hide them. */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
 /* Every amount, everywhere. Proportional digits make columns of money fail to line up
    and make the hero number twitch as it recounts (design-system.md §2.1). */
 .money,

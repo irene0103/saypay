@@ -93,9 +93,11 @@ export function useTransactionDraft(selfId: () => string) {
     return null
   })
 
+  // Title is no longer a required field in the list-style form (reference layout has no
+  // title row); the entry page fills it from the category name when left blank.
   const canSave = computed(() => {
     const d = draft.value
-    return d.amount > 0 && d.title.trim().length > 0 && d.category !== '' && error.value === null
+    return d.amount > 0 && d.category !== '' && error.value === null
   })
 
   /** Assemble the persistable row. Ids and timestamps are client-generated (spec §6.4). */
@@ -114,8 +116,12 @@ export function useTransactionDraft(selfId: () => string) {
       date: d.date,
       note: d.note.trim() || undefined,
       isSplit,
-      paidBy: isSplit ? d.paidBy : selfId(),
-      members: isSplit ? [...d.members] : [selfId()],
+      // Fall back to self: the draft may have been created before the store finished
+      // loading, when selfId() was still ''.
+      paidBy: isSplit ? d.paidBy || selfId() : selfId(),
+      members: isSplit
+        ? d.members.map((m) => m || selfId())
+        : [selfId()],
       splitType: d.splitType,
       splits: isSplit ? splits.value : [{ member: selfId(), shareAmount: d.amount }],
       groupId: d.groupId,
