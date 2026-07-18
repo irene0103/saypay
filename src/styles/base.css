@@ -1,0 +1,89 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: var(--min-width);
+  background: var(--bg);
+  color: var(--text);
+  font: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The fixed bottom tab is taken out of flow, so it does not inherit the body's min-width
+   and would otherwise keep shrinking past the floor while the content scrolled away. */
+.app-tabbar {
+  min-width: var(--min-width);
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+/* The UA's default button padding silently offsets anything positioned inside a button
+   (the split toggle's knob sat 8px off because of it), so the box comes from utility
+   classes instead.
+   Note border-width/style rather than `border: none` — `none` sets border-style, and
+   UnoCSS's `border` utility only supplies the WIDTH. Killing the style here would silently
+   erase the outline on every .btn-secondary and .btn-danger in the app. */
+button {
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  border-width: 0;
+  border-style: solid;
+  border-color: currentColor;
+  background: none;
+  color: inherit;
+}
+
+a {
+  color: var(--sage-700);
+  text-decoration: none;
+}
+
+/* Every amount, everywhere. Proportional digits make columns of money fail to line up
+   and make the hero number twitch as it recounts (design-system.md §2.1). */
+.money,
+[data-money] {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lucide icons: 1.75 stroke reads more delicate than the 2 default (design-system.md §4). */
+.lucide {
+  stroke-width: 1.75;
+}
+
+:focus-visible {
+  outline: 2px solid var(--sage-500);
+  outline-offset: 2px;
+}
+
+/* design-system.md §6 鐵則 — motion is never decorative, so removing it costs nothing. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

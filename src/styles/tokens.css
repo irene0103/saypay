@@ -1,0 +1,84 @@
+/**
+ * SayPay design tokens — design-system.md §8
+ * Values sampled from the wireframes; do not invent new colours here.
+ */
+:root {
+  /* --- Sage (brand) --- */
+  --sage-50: #f1f4ea;
+  --sage-100: #e9eedd;
+  --sage-200: #d8e0c7;
+  --sage-300: #b5c1a7;
+  --sage-500: #8a9c74;
+  --sage-700: #5a6b47;
+  --sage-900: #44503a;
+
+  /* --- Neutral (warm) --- */
+  --bg: #ffffff;
+  --surface: #fbfbf8;
+  --surface-alt: #f7f6f0;
+  --border: #eae8df;
+  --border-strong: #d8d5c8;
+  --text: #383830;
+  --text-secondary: #6b6a5e;
+  --text-tertiary: #9a9889;
+
+  /* --- Semantic --- */
+  --receivable: #5a6b47;
+  --payable: #b06850;
+  --payable-soft: #c08870;
+  --over-budget: #b06850;
+  --warn: #c99a5b;
+  --warn-soft: #f0e6d2;
+
+  /* --- Chart --- */
+  --chart-1: #8a9c74;
+  --chart-2: #a9b58c;
+  --chart-3: #c7b98e;
+  --chart-4: #b08e6a;
+  --chart-5: #8fa0a0;
+  --chart-6: #c0a9a0;
+
+  /* --- Radius --- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* --- Spacing --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* --- Shadow (only FAB / sheet / dialog / dropdown) --- */
+  --shadow-fab: 0 4px 12px rgba(56, 56, 48, 0.12);
+  --shadow-pop: 0 8px 24px rgba(56, 56, 48, 0.1);
+
+  /* --- Type families --- */
+  --font-num: 'Roboto Flex', 'DIN Alternate', system-ui, sans-serif;
+  --font-tc: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --font-en: 'Inter', system-ui, sans-serif;
+
+  /* --- Type scale: size / line-height / weight (design-system.md §2.2) --- */
+  --font-hero: 600 40px / 44px var(--font-num);
+  --font-display: 600 28px / 34px var(--font-num);
+  --font-h1: 600 20px / 28px var(--font-tc);
+  --font-h2: 600 17px / 24px var(--font-tc);
+  --font-body: 400 15px / 22px var(--font-tc);
+  --font-body-strong: 600 15px / 22px var(--font-tc);
+  --font-label: 500 13px / 18px var(--font-tc);
+  --font-caption: 400 12px / 16px var(--font-tc);
+  --font-micro: 500 11px / 14px var(--font-tc);
+
+  /* --- Layout --- */
+  /* Below this the design stops working: the hero amount, the 3-up 應收/淨額/應付 header and
+     the 7-column calendar all have a floor. Narrower viewports scroll instead of squashing. */
+  --min-width: 320px;
+  --page-padding: 16px;
+  --tab-height: 56px;
+  --content-max: 1080px;
+  --sidebar-width: 220px;
+}
