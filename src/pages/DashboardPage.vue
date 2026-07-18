@@ -1,55 +1,133 @@
 <script setup lang="ts">
 /**
- * Dashboard — wireframe 1a, spec §3.1.
+ * 帳本首頁 — reference layout 圖1.
  *
- * The hero number is monthStats.actual (實際花費), NOT .spent. Front a $600 hotpot for
- * three and `spent` says $600 while `actual` says $200 — only one of those is what the
- * evening cost you. Getting this backwards is the exact inaccuracy the product exists to
- * fix (spec §3.4).
+ * Week calendar → today's summary (支出 / 收入 / 待收款 / 待付款) → that day's transactions
+ * → a big 新增一筆記帳 button. Semantic colours stay from the design system (應收 sage,
+ * 應付 陶土), only the layout follows the reference.
+ *
+ * 待收款/待付款 are the pairwise balances (spec §5.3) — they are whole-ledger figures, not
+ * per-day, so they read the same regardless of the selected day.
  */
-import { computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
-import { Bell, Plus, Users } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Menu, Search, Bell, Sprout, Plus, MoreVertical } from '@lucide/vue'
 
-import AppCard from '@/components/ui/AppCard.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
-import TransactionRow from '@/components/ledger/TransactionRow.vue'
+import CategoryIcon from '@/components/ledger/CategoryIcon.vue'
+import { localDayKey, myShare } from '@/core/stats'
 import { useLedgerStore } from '@/stores/ledger'
 import { useToastStore } from '@/stores/toast'
+import type { Transaction } from '@/core/types'
 
 const ledger = useLedgerStore()
 const toast = useToastStore()
 const router = useRouter()
 
-const budgetTotal = computed(() => ledger.currentBudget?.total ?? 0)
-const spentPct = computed(() =>
-  budgetTotal.value === 0
-    ? 0
-    : Math.min(100, Math.round((ledger.monthStats.actual / budgetTotal.value) * 100)),
-)
-const remaining = computed(() => budgetTotal.value - ledger.monthStats.actual)
+const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
 
-/** Over budget → 陶土; nearing it → 赭黃; otherwise the deep sage (design-system.md §5.6). */
-const barColor = computed(() => {
-  if (spentPct.value > 100) return 'var(--payable)'
-  if (spentPct.value >= 80) return 'var(--warn)'
-  return 'var(--sage-900)'
+const selectedKey = ref(localDayKey(new Date()))
+const selectedDate = computed(() => {
+  const [y, m, d] = selectedKey.value.split('-')
+  return new Date(Number(y), Number(m) - 1, Number(d))
 })
 
-const recent = computed(() => [...ledger.liveTransactions].sort(byDateDesc).slice(0, 3))
+const monthLabel = computed(
+  () => `${selectedDate.value.getFullYear()}年${selectedDate.value.getMonth() + 1}月`,
+)
 
-function byDateDesc(a: { date: string; createdAt: string }, b: { date: string; createdAt: string }) {
-  // Same-day rows fall back to insertion order (spec §6.4).
-  return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
+// ---- The week (Mon–Sun) containing the selected day ----
+const weekDays = computed(() => {
+  const base = selectedDate.value
+  const dow = (base.getDay() + 6) % 7 // 0 = Monday
+  const monday = new Date(base)
+  monday.setDate(base.getDate() - dow)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return { key: localDayKey(d), day: d.getDate() }
+  })
+})
+
+function shiftWeek(delta: number) {
+  const d = new Date(selectedDate.value)
+  d.setDate(d.getDate() + delta * 7)
+  selectedKey.value = localDayKey(d)
 }
 
-const monthLabel = computed(() => `${Number(ledger.currentMonth.slice(5, 7))} 月`)
+// ---- Days with activity get a dot ----
+const activeDays = computed(() => {
+  const s = new Set<string>()
+  for (const t of ledger.liveTransactions) s.add(localDayKey(new Date(t.date)))
+  return s
+})
+
+// ---- Selected day's transactions + summary ----
+const dayTransactions = computed(() =>
+  ledger.liveTransactions
+    .filter((t) => localDayKey(new Date(t.date)) === selectedKey.value)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
+)
+
+const daySummary = computed(() => {
+  let expense = 0
+  let income = 0
+  for (const t of dayTransactions.value) {
+    if (t.type === 'income') income += t.amount
+    else expense += myShare(t, ledger.selfId)
+  }
+  return { expense, income }
+})
+
+const dayTitle = computed(() => {
+  const d = selectedDate.value
+  return `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEKDAYS[(d.getDay() + 6) % 7]}`
+})
+
+function categoryName(id: string) {
+  return ledger.categoryById.get(id)?.name ?? ''
+}
+function subtitle(t: Transaction) {
+  const payer =
+    t.isSplit && t.paidBy !== ledger.selfId
+      ? (ledger.liveMembers.find((m) => m.id === t.paidBy)?.name ?? null)
+      : null
+  return [categoryName(t.category), t.isSplit ? `與 ${t.members.length} 人分帳` : null, payer ? `${payer} 付` : null, t.note]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function edit(id: string) {
+  router.push({ name: 'tx-edit', params: { id } })
+}
+async function removeTx(id: string) {
+  const tombstoned = await ledger.softDeleteTransaction(id)
+  if (tombstoned) toast.show('已刪除', () => ledger.restoreTransaction(tombstoned.id))
+}
 </script>
 
 <template>
-  <div class="flex flex-col gap-5">
-    <header class="flex items-center justify-between">
-      <h1 class="text-text" :style="{ font: 'var(--font-h1)' }">分分帳 SayPay</h1>
+  <div class="flex flex-col gap-4">
+    <!-- Header -->
+    <header class="flex items-center gap-2 pt-1">
+      <button
+        class="flex h-10 w-10 items-center justify-center rounded-md text-text hover:bg-surface-alt"
+        aria-label="選單"
+        @click="router.push({ name: 'settings' })"
+      >
+        <Menu :size="22" />
+      </button>
+      <button class="flex items-center gap-1 text-text" :style="{ font: 'var(--font-h1)' }">
+        {{ monthLabel }}
+      </button>
+      <span class="flex-1" />
+      <button
+        class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
+        aria-label="搜尋"
+        @click="router.push({ name: 'ledger' })"
+      >
+        <Search :size="20" />
+      </button>
       <button
         class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
         aria-label="通知"
@@ -57,96 +135,152 @@ const monthLabel = computed(() => `${Number(ledger.currentMonth.slice(5, 7))} �
       >
         <Bell :size="20" />
       </button>
+      <Sprout :size="26" class="text-sage-500" />
     </header>
 
-    <!-- Hero: the one card in the app with a solid fill (design-system.md §5.2) -->
-    <AppCard hero>
-      <p class="text-text-secondary" :style="{ font: 'var(--font-caption)' }">
-        本月支出 · {{ monthLabel }}
-      </p>
-      <p class="mt-1">
-        <MoneyText :cents="ledger.monthStats.actual" size="hero" class="!text-sage-900" />
-      </p>
-
-      <div v-if="budgetTotal > 0" class="mt-4">
-        <div class="h-2 w-full overflow-hidden rounded-pill" style="background: var(--sage-50)">
-          <div
-            class="h-full rounded-pill transition-[width] duration-300 ease-out"
-            :style="{ width: `${Math.min(100, spentPct)}%`, background: barColor }"
-          />
-        </div>
-        <div class="mt-2 flex justify-between" :style="{ font: 'var(--font-caption)' }">
-          <span class="text-text-secondary">
-            預算 <span class="money">${{ Math.round(budgetTotal / 100).toLocaleString() }}</span>
-          </span>
-          <span :class="remaining < 0 ? 'text-payable' : 'text-text-secondary'">
-            {{ remaining < 0 ? '超支' : '剩' }}
-            <span class="money">
-              ${{ Math.abs(Math.round(remaining / 100)).toLocaleString() }}
-            </span>
-          </span>
-        </div>
+    <!-- Week calendar -->
+    <div>
+      <div class="grid grid-cols-7 text-center">
+        <span
+          v-for="w in WEEKDAYS"
+          :key="w"
+          class="pb-2 text-text-tertiary"
+          :style="{ font: 'var(--font-caption)' }"
+          >{{ w }}</span
+        >
       </div>
-    </AppCard>
-
-    <!-- Owed / owing. Both colour AND sign carry the direction (design-system.md §5.7, §7). -->
-    <div class="grid grid-cols-2 gap-3">
-      <RouterLink :to="{ name: 'split', query: { filter: 'receivable' } }" class="card block">
-        <p class="text-text-secondary" :style="{ font: 'var(--font-caption)' }">誰欠我</p>
-        <p class="mt-1">
-          <MoneyText :cents="ledger.balances.receivable" tone="signed" size="display" />
-        </p>
-      </RouterLink>
-
-      <RouterLink :to="{ name: 'split', query: { filter: 'payable' } }" class="card block">
-        <p class="text-text-secondary" :style="{ font: 'var(--font-caption)' }">我欠誰</p>
-        <p class="mt-1">
-          <MoneyText :cents="-ledger.balances.payable" tone="signed" size="display" />
-        </p>
-      </RouterLink>
-    </div>
-
-    <AppCard title="最近記錄">
-      <template #action>
-        <RouterLink
-          :to="{ name: 'ledger' }"
-          class="text-sage-700"
-          :style="{ font: 'var(--font-label)' }"
-        >
-          See all
-        </RouterLink>
-      </template>
-
-      <p
-        v-if="recent.length === 0"
-        class="py-6 text-center text-text-tertiary"
-        :style="{ font: 'var(--font-body)' }"
-      >
-        還沒有記錄，記下今天的第一筆吧
-      </p>
-      <div v-else class="divide-y divide-border">
+      <div class="grid grid-cols-7 text-center" @touchstart.passive="() => {}">
         <button
-          v-for="tx in recent"
-          :key="tx.id"
-          class="block w-full text-left"
-          @click="router.push({ name: 'tx-edit', params: { id: tx.id } })"
+          v-for="cell in weekDays"
+          :key="cell.key"
+          class="flex flex-col items-center gap-1 py-1"
+          @click="selectedKey = cell.key"
         >
-          <TransactionRow :tx="tx" />
+          <span
+            class="flex h-9 w-9 items-center justify-center rounded-pill money transition-colors"
+            :class="
+              selectedKey === cell.key
+                ? 'bg-sage-500 text-white'
+                : 'text-text hover:bg-surface-alt'
+            "
+            :style="{ font: 'var(--font-body)' }"
+            >{{ cell.day }}</span
+          >
+          <span
+            class="h-1 w-1 rounded-pill"
+            :class="activeDays.has(cell.key) && selectedKey !== cell.key ? 'bg-sage-300' : 'bg-transparent'"
+          />
         </button>
       </div>
-    </AppCard>
-
-    <!-- Quick actions, lifted from wireframe 1c -->
-    <div class="grid grid-cols-2 gap-3">
-      <button class="btn-secondary" @click="router.push({ name: 'tx-new' })">
-        <Plus :size="20" /> 記一筆
-      </button>
-      <button
-        class="btn-secondary"
-        @click="router.push({ name: 'tx-new', query: { split: '1' } })"
-      >
-        <Users :size="20" /> 分一筆
-      </button>
+      <div class="mt-1 flex justify-between">
+        <button
+          class="px-2 text-text-tertiary hover:text-text"
+          :style="{ font: 'var(--font-caption)' }"
+          @click="shiftWeek(-1)"
+        >
+          ‹ 上週
+        </button>
+        <button
+          class="px-2 text-text-tertiary hover:text-text"
+          :style="{ font: 'var(--font-caption)' }"
+          @click="selectedKey = localDayKey(new Date())"
+        >
+          今天
+        </button>
+        <button
+          class="px-2 text-text-tertiary hover:text-text"
+          :style="{ font: 'var(--font-caption)' }"
+          @click="shiftWeek(1)"
+        >
+          下週 ›
+        </button>
+      </div>
     </div>
+
+    <!-- Day summary -->
+    <section class="card">
+      <p class="mb-3 text-text-secondary" :style="{ font: 'var(--font-caption)' }">今日摘要</p>
+      <div class="grid grid-cols-4 gap-1 text-center">
+        <div>
+          <p class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">支出</p>
+          <MoneyText :cents="daySummary.expense" size="strong" />
+        </div>
+        <div>
+          <p class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">收入</p>
+          <MoneyText :cents="daySummary.income" size="strong" />
+        </div>
+        <button class="block" @click="router.push({ name: 'split', query: { filter: 'receivable' } })">
+          <p class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">待收款</p>
+          <MoneyText :cents="ledger.balances.receivable" size="strong" class="!text-receivable" />
+        </button>
+        <button class="block" @click="router.push({ name: 'split', query: { filter: 'payable' } })">
+          <p class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">待付款</p>
+          <MoneyText :cents="ledger.balances.payable" size="strong" class="!text-payable" />
+        </button>
+      </div>
+    </section>
+
+    <!-- Day header -->
+    <div class="flex items-center justify-between px-1">
+      <span class="text-text" :style="{ font: 'var(--font-body-strong)' }">{{ dayTitle }}</span>
+      <span class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+        支出 <span class="money">${{ Math.round(daySummary.expense / 100).toLocaleString() }}</span>
+      </span>
+    </div>
+
+    <!-- Day transactions -->
+    <section class="card !p-0">
+      <p
+        v-if="dayTransactions.length === 0"
+        class="py-8 text-center text-text-tertiary"
+        :style="{ font: 'var(--font-body)' }"
+      >
+        這天還沒有記錄
+      </p>
+      <div v-else class="divide-y divide-border">
+        <div v-for="t in dayTransactions" :key="t.id" class="flex items-center gap-3 px-4 py-3">
+          <CategoryIcon :category-id="t.category" :size="40" />
+
+          <button class="min-w-0 flex-1 text-left" @click="edit(t.id)">
+            <p class="truncate text-text" :style="{ font: 'var(--font-body-strong)' }">
+              {{ t.title }}
+            </p>
+            <p class="truncate text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+              {{ subtitle(t) }}
+            </p>
+          </button>
+
+          <div class="shrink-0 text-right">
+            <MoneyText
+              :cents="t.amount"
+              :tone="t.type === 'income' ? 'signed' : 'plain'"
+              size="strong"
+              class="block"
+            />
+            <p
+              v-if="t.isSplit"
+              class="text-text-tertiary"
+              :style="{ font: 'var(--font-caption)' }"
+            >
+              我的
+              <MoneyText :cents="myShare(t, ledger.selfId)" size="caption" class="!text-text-tertiary" />
+            </p>
+          </div>
+
+          <button
+            class="flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary hover:bg-surface-alt hover:text-payable"
+            aria-label="刪除"
+            @click="removeTx(t.id)"
+          >
+            <MoreVertical :size="18" />
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Add -->
+    <button class="btn-primary w-full !h-12" @click="router.push({ name: 'tx-new' })">
+      <Plus :size="20" /> 新增一筆記帳
+    </button>
   </div>
 </template>

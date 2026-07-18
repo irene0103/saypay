@@ -3,12 +3,12 @@
  * The app shell — design-system.md §3.2.
  * Phone: bottom tab with a raised centre FAB. Tablet (≥768px): left sidebar, no tab bar.
  */
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { BookText, Users, Plus, ChartPie, Settings } from '@lucide/vue'
 
 import { db, requestPersistentStorage } from '@/db'
-import { seedDev } from '@/db/seed'
+import { seedDefaults, seedDev } from '@/db/seed'
 import { useLedgerStore } from '@/stores/ledger'
 import UndoToast from '@/components/ui/UndoToast.vue'
 
@@ -29,11 +29,17 @@ onMounted(async () => {
   // Ask to keep our data before writing any (spec §3.12 L1).
   await requestPersistentStorage()
   await db.open()
+  // Starter categories + "我" for everyone; demo transactions only in dev.
+  await seedDefaults()
   if (import.meta.env.DEV) await seedDev()
   await ledger.load()
 })
 
 const isActive = (name: string) => route.name === name
+
+// The entry form is a full-screen page (its own ✕ / 儲存 header and a bottom keypad), so
+// the app chrome — bottom tab and its content padding — must get out of the way.
+const isEntryPage = computed(() => route.name === 'tx-new' || route.name === 'tx-edit')
 </script>
 
 <template>
@@ -69,13 +75,14 @@ const isActive = (name: string) => route.name === name
 
     <!-- Content -->
     <main class="mx-auto w-full flex-1" :style="{ maxWidth: 'var(--content-max)' }">
-      <div class="px-4 pb-24 pt-4 md:pb-8">
+      <div class="px-4 pt-4" :class="isEntryPage ? 'pb-0' : 'pb-24 md:pb-8'">
         <RouterView />
       </div>
     </main>
 
-    <!-- Phone bottom tab (design-system.md §5.5) -->
+    <!-- Phone bottom tab (design-system.md §5.5) — hidden on the full-screen entry form -->
     <nav
+      v-if="!isEntryPage"
       class="app-tabbar fixed inset-x-0 bottom-0 z-20 flex items-end border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       :style="{ height: 'calc(var(--tab-height) + env(safe-area-inset-bottom))' }"
     >

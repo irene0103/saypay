@@ -1,11 +1,13 @@
 /**
- * Dev seed data. Numbers are chosen to reproduce the wireframe's headline figures so the
- * screens can be checked against the design without a backend:
+ * Seeding has two layers:
  *
- *   應收 $1,200 (Amy $600 + Ben $600) · 應付 $300 (Cindy) · 淨額 +$900
+ *  - seedDefaults() — the "我" member and a starter category tree. Runs on EVERY first
+ *    launch, production included: without categories the entry form has nothing to pick
+ *    and without a self member every stat is empty. This is real starter content, not
+ *    demo data.
  *
- * This is DEV ONLY — it is never imported from main.ts in production. Real data arrives
- * from IndexedDB and Supabase sync (spec §6.1).
+ *  - seedDev() — demo people, groups and a month of transactions that reproduce the
+ *    wireframe's headline figures (應收 $1,200 · 應付 $300 · 淨額 +$900). DEV ONLY.
  */
 import { db } from '@/db'
 import { toCents } from '@/core/money'
@@ -21,15 +23,16 @@ const AMY = 'm-amy'
 const BEN = 'm-ben'
 const CINDY = 'm-cindy'
 
-const members: Member[] = [
-  { id: ME, name: '我', avatarColor: '#8A9C74', isSelf: true },
+const selfMember: Member = { id: ME, name: '我', avatarColor: '#8A9C74', isSelf: true }
+
+const demoMembers: Member[] = [
   { id: AMY, name: 'Amy', avatarColor: '#A9B58C', isSelf: false },
   { id: BEN, name: 'Ben', avatarColor: '#C7B98E', isSelf: false },
   { id: CINDY, name: 'Cindy', avatarColor: '#B08E6A', isSelf: false },
 ]
 
 // Two levels only; transactions always hang off a LEAF (spec §4.6).
-const categories: Category[] = [
+const defaultCategories: Category[] = [
   { id: 'c-food', name: '餐飲', icon: 'utensils', sortOrder: 1 },
   { id: 'c-food-out', name: '外食', icon: 'utensils', parentId: 'c-food', sortOrder: 1 },
   { id: 'c-food-grocery', name: '食材', icon: 'shopping-basket', parentId: 'c-food', sortOrder: 2 },
@@ -144,16 +147,29 @@ const transactions: Transaction[] = [
 
 const settlements: Settlement[] = []
 
+/**
+ * Starter content for a brand-new ledger — runs in production too. Idempotent: only fills
+ * in what's missing, so it never clobbers a user who already has data, and it restores the
+ * category tree if it somehow ends up empty.
+ */
+export async function seedDefaults(): Promise<void> {
+  const [memberCount, categoryCount] = await Promise.all([
+    db.members.count(),
+    db.categories.count(),
+  ])
+  if (memberCount === 0) await db.members.add(selfMember)
+  if (categoryCount === 0) await db.categories.bulkAdd(defaultCategories)
+}
+
+/** Demo data on top of the defaults — DEV ONLY. Guarded on the transaction table. */
 export async function seedDev(): Promise<void> {
-  const already = await db.members.count()
-  if (already > 0) return
+  if ((await db.transactions.count()) > 0) return
 
   await db.transaction(
     'rw',
-    [db.members, db.categories, db.groups, db.transactions, db.settlements, db.budgets],
+    [db.members, db.groups, db.transactions, db.settlements, db.budgets],
     async () => {
-      await db.members.bulkAdd(members)
-      await db.categories.bulkAdd(categories)
+      await db.members.bulkAdd(demoMembers)
       await db.groups.bulkAdd(groups)
       await db.transactions.bulkAdd(transactions)
       await db.settlements.bulkAdd(settlements)
@@ -171,9 +187,10 @@ export async function seedDev(): Promise<void> {
   )
 }
 
-/** Wipe and re-seed. Handy while iterating on the screens. */
+/** Wipe and re-seed the full demo. Handy while iterating on the screens. */
 export async function reseedDev(): Promise<void> {
   await db.delete()
   await db.open()
+  await seedDefaults()
   await seedDev()
 }
