@@ -14,7 +14,7 @@
  */
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Share2, Plus } from '@lucide/vue'
+import { Share2, Plus, Trash2 } from '@lucide/vue'
 
 import AppCard from '@/components/ui/AppCard.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
@@ -24,9 +24,11 @@ import ConfirmDialog from '@/components/split/ConfirmDialog.vue'
 import { buildDebtMap, net } from '@/core/debt'
 import { formatMoney, evalAmountExpression } from '@/core/money'
 import { useLedgerStore } from '@/stores/ledger'
+import { useToastStore } from '@/stores/toast'
 import type { Cents, Member } from '@/core/types'
 
 const ledger = useLedgerStore()
+const toast = useToastStore()
 const route = useRoute()
 
 const tab = ref<'people' | 'groups'>('people')
@@ -113,15 +115,19 @@ function submitSettle() {
   commitSettle(row, amount)
 }
 
-function commitSettle(row: Row, amount: Cents) {
+async function commitSettle(row: Row, amount: Cents) {
   // A settlement is an independent ledger entry — it NEVER edits the original transactions
-  // (spec §3.3.3). Persisting it is the sync layer's job (Phase 3).
+  // (spec §3.3.3). The from→to direction is who currently owes whom.
   const owesMe = row.net > 0
-  // eslint-disable-next-line no-console
-  console.log('[settle] TODO persist', {
+  await ledger.saveSettlement({
+    id: crypto.randomUUID(),
+    // ownerId is the account uid, not a memberId. Until anonymous auth lands (Phase 4),
+    // inherit it from the existing ledger so all rows share one owner.
+    ownerId: ledger.liveTransactions[0]?.ownerId ?? 'local',
     from: owesMe ? row.member.id : ledger.selfId,
     to: owesMe ? ledger.selfId : row.member.id,
     amount,
+    at: new Date().toISOString(),
   })
   settling.value = null
   overpayWarning.value = null
@@ -141,13 +147,64 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'receivable', label: '應收' },
   { key: 'payable', label: '應付' },
 ]
+
+// ---- Settlement history (查看結清記錄) ----
+const showHistory = ref(false)
+const memberName = (id: string) =>
+  ledger.liveMembers.find((m) => m.id === id)?.name ?? '（已刪除）'
+const settlementHistory = computed(() =>
+  [...ledger.liveSettlements].sort((a, b) => b.at.localeCompare(a.at)),
+)
+
+async function removeSettlement(id: string) {
+  // A settlement can be deleted to undo a mistake, but never edited (spec §3.3.3).
+  await ledger.softDeleteSettlement(id)
+}
+
+// ---- Create group (spec §3.3.2) ----
+const creatingGroup = ref(false)
+const groupName = ref('')
+const groupMemberIds = ref<string[]>([])
+
+function openCreateGroup() {
+  groupName.value = ''
+  groupMemberIds.value = ledger.selfId ? [ledger.selfId] : []
+  creatingGroup.value = true
+}
+
+function toggleGroupMember(id: string) {
+  const i = groupMemberIds.value.indexOf(id)
+  if (i >= 0) groupMemberIds.value.splice(i, 1)
+  else groupMemberIds.value.push(id)
+}
+
+async function commitCreateGroup() {
+  const name = groupName.value.trim()
+  if (!name) return
+  await ledger.saveGroup({
+    id: crypto.randomUUID(),
+    name,
+    memberIds: [...groupMemberIds.value],
+    createdAt: new Date().toISOString(),
+  })
+  creatingGroup.value = false
+}
+
+// ---- Share (spec §3.11 — backend RPC, Phase 5, not built) ----
+function share() {
+  toast.show('分享連結功能開發中')
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
     <header class="flex items-center justify-between">
       <h1 class="text-text" :style="{ font: 'var(--font-h1)' }">分帳</h1>
-      <button v-if="tab === 'groups'" class="btn-ghost !h-9 !px-2 text-sage-700">
+      <button
+        v-if="tab === 'groups'"
+        class="btn-ghost !h-9 !px-2 text-sage-700"
+        @click="openCreateGroup"
+      >
         <Plus :size="18" /> 群組
       </button>
     </header>
@@ -232,6 +289,7 @@ const FILTERS: { key: Filter; label: string }[] = [
             <button
               class="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
               aria-label="分享"
+              @click="share"
             >
               <Share2 :size="18" />
             </button>
@@ -239,7 +297,7 @@ const FILTERS: { key: Filter; label: string }[] = [
         </div>
       </AppCard>
 
-      <button class="btn-ghost w-full">查看結清記錄</button>
+      <button class="btn-ghost w-full" @click="showHistory = true">查看結清記錄</button>
     </template>
 
     <!-- 1h groups -->
@@ -263,7 +321,7 @@ const FILTERS: { key: Filter; label: string }[] = [
           </div>
         </article>
 
-        <button class="btn-secondary w-full">
+        <button class="btn-secondary w-full" @click="openCreateGroup">
           <Plus :size="20" /> 建立群組（旅遊 / 聚餐 / 室友…）
         </button>
       </div>
@@ -310,5 +368,66 @@ const FILTERS: { key: Filter; label: string }[] = [
       @close="overpayWarning = null"
       @confirm="commitSettle(overpayWarning.row, overpayWarning.amount)"
     />
+
+    <!-- Settlement history -->
+    <SplitDialog v-if="showHistory" title="結清記錄" @close="showHistory = false">
+      <p
+        v-if="settlementHistory.length === 0"
+        class="py-6 text-center text-text-tertiary"
+        :style="{ font: 'var(--font-body)' }"
+      >
+        還沒有結清記錄
+      </p>
+      <div v-else class="flex max-h-[60vh] flex-col divide-y divide-border overflow-y-auto">
+        <div v-for="s in settlementHistory" :key="s.id" class="flex items-center gap-3 py-3">
+          <div class="min-w-0 flex-1">
+            <p class="text-text" :style="{ font: 'var(--font-body)' }">
+              {{ memberName(s.from) }} → {{ memberName(s.to) }}
+            </p>
+            <p class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+              {{ s.at.slice(0, 10) }}
+            </p>
+          </div>
+          <MoneyText :cents="s.amount" size="strong" />
+          <button
+            class="text-text-tertiary hover:text-payable"
+            aria-label="刪除結清記錄"
+            @click="removeSettlement(s.id)"
+          >
+            <Trash2 :size="16" />
+          </button>
+        </div>
+      </div>
+    </SplitDialog>
+
+    <!-- Create group -->
+    <SplitDialog v-if="creatingGroup" title="建立群組" @close="creatingGroup = false">
+      <input
+        v-model="groupName"
+        class="input w-full"
+        placeholder="群組名稱（旅遊 / 聚餐 / 室友…）"
+        autofocus
+        @keyup.enter="commitCreateGroup"
+      />
+      <p class="mt-4 text-text-secondary" :style="{ font: 'var(--font-label)' }">成員</p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        <button
+          v-for="m in ledger.liveMembers"
+          :key="m.id"
+          class="flex items-center gap-1 rounded-pill p-1 pr-2 transition-colors"
+          :class="groupMemberIds.includes(m.id) ? 'bg-sage-200' : 'bg-surface-alt'"
+          @click="toggleGroupMember(m.id)"
+        >
+          <MemberAvatar :member="m" :size="20" />
+          <span :style="{ font: 'var(--font-caption)' }">{{ m.name }}</span>
+        </button>
+      </div>
+      <div class="mt-5 flex gap-2">
+        <button class="btn-ghost flex-1" @click="creatingGroup = false">取消</button>
+        <button class="btn-primary flex-1" :disabled="!groupName.trim()" @click="commitCreateGroup">
+          建立
+        </button>
+      </div>
+    </SplitDialog>
   </div>
 </template>

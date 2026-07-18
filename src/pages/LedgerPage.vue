@@ -9,16 +9,30 @@
  * Daily totals are 實際花費 (my share), consistent with every other spend figure (§3.4).
  */
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ChevronLeft, ChevronRight, Search, X } from '@lucide/vue'
 
 import AppCard from '@/components/ui/AppCard.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
 import TransactionRow from '@/components/ledger/TransactionRow.vue'
+import SwipeRow from '@/components/ledger/SwipeRow.vue'
 import { daysInMonth, localDayKey, monthStart, myShare, shiftMonthKey } from '@/core/stats'
 import { useLedgerStore } from '@/stores/ledger'
+import { useToastStore } from '@/stores/toast'
 import type { Transaction } from '@/core/types'
 
 const ledger = useLedgerStore()
+const toast = useToastStore()
+const router = useRouter()
+
+function editTx(id: string) {
+  router.push({ name: 'tx-edit', params: { id } })
+}
+
+async function deleteTx(id: string) {
+  const tombstoned = await ledger.softDeleteTransaction(id)
+  if (tombstoned) toast.show('已刪除', () => ledger.restoreTransaction(tombstoned.id))
+}
 
 const view = ref<'list' | 'calendar'>('list')
 const query = ref('')
@@ -192,7 +206,15 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
         {{ query ? '沒有符合的記錄' : '還沒有記錄，記下今天的第一筆吧' }}
       </p>
       <div v-else class="divide-y divide-border">
-        <TransactionRow v-for="tx in filtered" :key="tx.id" :tx="tx" />
+        <SwipeRow
+          v-for="tx in filtered"
+          :key="tx.id"
+          @select="editTx(tx.id)"
+          @edit="editTx(tx.id)"
+          @delete="deleteTx(tx.id)"
+        >
+          <TransactionRow :tx="tx" />
+        </SwipeRow>
       </div>
     </AppCard>
 
@@ -248,7 +270,15 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
           這天沒有記錄
         </p>
         <div v-else class="divide-y divide-border">
-          <TransactionRow v-for="tx in dayTransactions" :key="tx.id" :tx="tx" />
+          <SwipeRow
+            v-for="tx in dayTransactions"
+            :key="tx.id"
+            @select="editTx(tx.id)"
+            @edit="editTx(tx.id)"
+            @delete="deleteTx(tx.id)"
+          >
+            <TransactionRow :tx="tx" />
+          </SwipeRow>
         </div>
       </AppCard>
     </template>

@@ -9,6 +9,7 @@
  * There is no group budget and no rollover.
  */
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Pencil } from '@lucide/vue'
 
 import AppCard from '@/components/ui/AppCard.vue'
@@ -18,6 +19,7 @@ import { formatMoney } from '@/core/money'
 import { useLedgerStore } from '@/stores/ledger'
 
 const ledger = useLedgerStore()
+const router = useRouter()
 
 const budget = computed(() => ledger.currentBudget)
 const total = computed(() => budget.value?.total ?? 0)
@@ -61,6 +63,7 @@ const ringOffset = computed(() => CIRCUMFERENCE * (1 - Math.min(100, pct.value) 
       <button
         class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
         aria-label="編輯預算"
+        @click="router.push({ name: 'budget-edit' })"
       >
         <Pencil :size="18" />
       </button>

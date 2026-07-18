@@ -20,8 +20,11 @@ import {
   Info,
 } from '@lucide/vue'
 
+import { useRouter } from 'vue-router'
+
 import AppCard from '@/components/ui/AppCard.vue'
 import { useLedgerStore } from '@/stores/ledger'
+import { useToastStore } from '@/stores/toast'
 import {
   buildSettlementsCsv,
   buildTransactionsCsv,
@@ -31,6 +34,8 @@ import {
 } from '@/lib/export'
 
 const ledger = useLedgerStore()
+const toast = useToastStore()
+const router = useRouter()
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -47,9 +52,9 @@ const SECTIONS = [
   {
     title: '管理',
     items: [
-      { icon: Users, label: '成員管理', hint: `${'​'}` },
-      { icon: Tag, label: '類別管理' },
-      { icon: Wallet, label: '預算管理' },
+      { icon: Users, label: '成員管理', to: 'members' },
+      { icon: Tag, label: '類別管理', to: 'categories' },
+      { icon: Wallet, label: '預算管理', to: 'budget-edit' },
       { icon: Link2, label: '分享連結管理' },
     ],
   },
@@ -161,6 +166,7 @@ function doExportSettlements() {
           v-for="item in section.items"
           :key="item.label"
           class="flex w-full items-center gap-3 py-3 text-left hover:bg-surface-alt"
+          @click="'to' in item && item.to ? router.push({ name: item.to }) : undefined"
         >
           <component :is="item.icon" :size="20" class="text-text-secondary" />
           <span class="flex-1 text-text" :style="{ font: 'var(--font-body)' }">
@@ -176,7 +182,7 @@ function doExportSettlements() {
       目前使用匿名帳號。綁定帳號後，換手機也能取回資料。
     </p>
 
-    <button class="btn-danger w-full">
+    <button class="btn-danger w-full" @click="toast.show('帳號功能需先綁定登入（開發中）')">
       <Trash2 :size="18" /> 刪除帳號
     </button>
   </div>

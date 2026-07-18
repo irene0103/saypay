@@ -10,7 +10,7 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Check, Plus, X } from '@lucide/vue'
+import { Check, Plus, Trash2, X } from '@lucide/vue'
 
 import MemberAvatar from '@/components/ui/MemberAvatar.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
@@ -18,16 +18,17 @@ import { useTransactionDraft } from '@/components/tx/useTransactionDraft'
 import { evalAmountExpression, formatMoney } from '@/core/money'
 import { MAX_MEMBERS } from '@/core/types'
 import { useLedgerStore } from '@/stores/ledger'
+import { useToastStore } from '@/stores/toast'
 
 const props = defineProps<{ id?: string }>()
 
 const ledger = useLedgerStore()
+const toast = useToastStore()
 const route = useRoute()
 const router = useRouter()
 
-const { draft, splits, error, canSave, toTransaction, resetForNext } = useTransactionDraft(
-  () => ledger.selfId,
-)
+const { draft, splits, error, canSave, toTransaction, resetForNext, loadFrom } =
+  useTransactionDraft(() => ledger.selfId)
 
 /** Raw keypad text — supports `180+50` (spec §3.2.1). Kept separate from draft.amount. */
 const amountInput = ref('')
@@ -79,6 +80,35 @@ function toggleMember(id: string) {
   syncValues()
 }
 
+// ---- Inline "add member" (the + in the participant picker) ----
+const AVATAR_COLORS = ['#8A9C74', '#A9B58C', '#C7B98E', '#B08E6A', '#8FA0A0', '#C0A9A0']
+const addingMember = ref(false)
+const newMemberName = ref('')
+
+async function confirmNewMember() {
+  const name = newMemberName.value.trim()
+  if (!name) {
+    addingMember.value = false
+    return
+  }
+  const id = crypto.randomUUID()
+  const res = await ledger.saveMember({
+    id,
+    name,
+    avatarColor: AVATAR_COLORS[ledger.liveMembers.length % AVATAR_COLORS.length]!,
+    isSelf: false,
+  })
+  if (!res.ok) {
+    // Most likely a duplicate name (spec §4.2) — say why instead of silently failing.
+    if (res.reason) toast.show(res.reason)
+    return
+  }
+  draft.value.members.push(id)
+  syncValues()
+  newMemberName.value = ''
+  addingMember.value = false
+}
+
 /** custom/percentage values are positional — keep them aligned with `members`. */
 function syncValues() {
   const d = draft.value
@@ -101,24 +131,45 @@ onMounted(() => {
   if (props.id) {
     const tx = ledger.liveTransactions.find((t) => t.id === props.id)
     if (tx) {
+      loadFrom(tx)
       amountInput.value = String(Math.round(tx.amount / 100))
     }
   }
 })
 
-function save(andAnother = false) {
+async function remove() {
+  if (!props.id) return
+  const tombstoned = await ledger.softDeleteTransaction(props.id)
+  leave()
+  // The delete is already durable in IndexedDB; the toast just offers a 5s escape hatch
+  // before it's really gone from view (spec §3.12 L2).
+  if (tombstoned) toast.show('已刪除', () => ledger.restoreTransaction(tombstoned.id))
+}
+
+/**
+ * Go back, but land in the ledger rather than walking out of the app when this page was
+ * opened directly (deep link, fresh tab) with no in-app history to pop.
+ */
+function leave() {
+  if (window.history.state?.back) router.back()
+  else router.replace({ name: 'ledger' })
+}
+
+const existing = computed(() =>
+  props.id ? ledger.liveTransactions.find((t) => t.id === props.id) : undefined,
+)
+
+async function save(andAnother = false) {
   if (!canSave.value) return
-  const tx = toTransaction(ledger.selfId)
-  // TODO(Phase 1): persist via db.transactions.put + outbox enqueue, then ledger.load().
-  // eslint-disable-next-line no-console
-  console.log('[tx] TODO persist', tx)
+  await ledger.saveTransaction(toTransaction(ledger.selfId, existing.value))
 
   if (andAnother) {
+    // 儲存並再記一筆: keep category/members/paidBy, clear the rest (spec §3.2.1).
     resetForNext()
     amountInput.value = ''
     return
   }
-  router.back()
+  leave()
 }
 </script>
 
@@ -128,7 +179,7 @@ function save(andAnother = false) {
       <button
         class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
         aria-label="取消"
-        @click="router.back()"
+        @click="leave()"
       >
         <X :size="20" />
       </button>
@@ -276,11 +327,24 @@ function save(andAnother = false) {
               +{{ hiddenCount }}
             </button>
 
+            <!-- Inline name entry, or the + that opens it -->
+            <input
+              v-if="addingMember"
+              v-model="newMemberName"
+              class="input !h-7 w-28 !px-2"
+              :style="{ font: 'var(--font-caption)' }"
+              placeholder="新成員名稱"
+              autofocus
+              @keyup.enter="confirmNewMember"
+              @blur="confirmNewMember"
+            />
             <button
+              v-else
               class="flex h-7 w-7 items-center justify-center rounded-pill bg-surface text-text-secondary disabled:opacity-40"
               :disabled="draft.members.length >= MAX_MEMBERS"
               :title="draft.members.length >= MAX_MEMBERS ? `單筆最多 ${MAX_MEMBERS} 人` : '新增成員'"
               aria-label="新增成員"
+              @click="addingMember = true"
             >
               <Plus :size="16" />
             </button>
@@ -351,10 +415,14 @@ function save(andAnother = false) {
     </template>
 
     <div class="flex gap-2">
-      <button class="btn-secondary flex-1" :disabled="!canSave" @click="save(true)">
+      <button v-if="!props.id" class="btn-secondary flex-1" :disabled="!canSave" @click="save(true)">
         儲存並再記一筆
       </button>
       <button class="btn-primary flex-1" :disabled="!canSave" @click="save()">儲存</button>
     </div>
+
+    <button v-if="props.id" class="btn-danger w-full" @click="remove">
+      <Trash2 :size="18" /> 刪除這筆
+    </button>
   </div>
 </template>

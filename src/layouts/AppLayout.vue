@@ -10,6 +10,7 @@ import { BookText, Users, Plus, ChartPie, Settings } from '@lucide/vue'
 import { db, requestPersistentStorage } from '@/db'
 import { seedDev } from '@/db/seed'
 import { useLedgerStore } from '@/stores/ledger'
+import UndoToast from '@/components/ui/UndoToast.vue'
 
 const ledger = useLedgerStore()
 const route = useRoute()
@@ -104,5 +105,7 @@ const isActive = (name: string) => route.name === name
         <Plus :size="24" />
       </button>
     </nav>
+
+    <UndoToast />
   </div>
 </template>

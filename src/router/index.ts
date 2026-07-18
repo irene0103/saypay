@@ -20,6 +20,21 @@ const routes: RouteRecordRaw[] = [
       { path: 'analytics', name: 'analytics', component: () => import('@/pages/AnalyticsPage.vue') },
       { path: 'budget', name: 'budget', component: () => import('@/pages/BudgetPage.vue') },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue') },
+      {
+        path: 'settings/categories',
+        name: 'categories',
+        component: () => import('@/pages/CategoriesPage.vue'),
+      },
+      {
+        path: 'settings/members',
+        name: 'members',
+        component: () => import('@/pages/MembersPage.vue'),
+      },
+      {
+        path: 'settings/budget',
+        name: 'budget-edit',
+        component: () => import('@/pages/BudgetEditPage.vue'),
+      },
       { path: 'tx/new', name: 'tx-new', component: () => import('@/pages/TransactionEditPage.vue') },
       {
         path: 'tx/:id',

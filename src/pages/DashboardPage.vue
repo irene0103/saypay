@@ -15,8 +15,10 @@ import AppCard from '@/components/ui/AppCard.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
 import TransactionRow from '@/components/ledger/TransactionRow.vue'
 import { useLedgerStore } from '@/stores/ledger'
+import { useToastStore } from '@/stores/toast'
 
 const ledger = useLedgerStore()
+const toast = useToastStore()
 const router = useRouter()
 
 const budgetTotal = computed(() => ledger.currentBudget?.total ?? 0)
@@ -51,6 +53,7 @@ const monthLabel = computed(() => `${Number(ledger.currentMonth.slice(5, 7))} �
       <button
         class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
         aria-label="通知"
+        @click="toast.show('目前沒有新通知')"
       >
         <Bell :size="20" />
       </button>
@@ -122,7 +125,14 @@ const monthLabel = computed(() => `${Number(ledger.currentMonth.slice(5, 7))} �
         還沒有記錄，記下今天的第一筆吧
       </p>
       <div v-else class="divide-y divide-border">
-        <TransactionRow v-for="tx in recent" :key="tx.id" :tx="tx" />
+        <button
+          v-for="tx in recent"
+          :key="tx.id"
+          class="block w-full text-left"
+          @click="router.push({ name: 'tx-edit', params: { id: tx.id } })"
+        >
+          <TransactionRow :tx="tx" />
+        </button>
       </div>
     </AppCard>
 
