@@ -51,14 +51,27 @@ interface Row {
   count: number
 }
 
+/**
+ * Split bills between me and `otherId`: one of us paid, the other took part. This is the
+ * single definition of "our transactions" — the row's 筆數 and the detail dialog both use
+ * it, so they can never disagree.
+ */
+function pairwiseTxs(otherId: string) {
+  const me = ledger.selfId
+  return ledger.liveTransactions.filter(
+    (t) =>
+      t.isSplit &&
+      t.type === 'expense' &&
+      ((t.paidBy === me && t.splits.some((s) => s.member === otherId && s.member !== t.paidBy)) ||
+        (t.paidBy === otherId && t.splits.some((s) => s.member === me && s.member !== t.paidBy))),
+  )
+}
+
 const rows = computed<Row[]>(() =>
   ledger.balances.perPerson.flatMap(({ member, net: n }) => {
     const m = memberById.value.get(member)
     if (!m) return []
-    const count = ledger.liveTransactions.filter(
-      (t) => t.isSplit && t.splits.some((s) => s.member === member),
-    ).length
-    return [{ member: m, net: n, count }]
+    return [{ member: m, net: n, count: pairwiseTxs(member).length }]
   }),
 )
 
@@ -248,8 +261,20 @@ const groupTransactions = computed(() =>
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
     : [],
 )
-function editFromGroup(id: string) {
+// Tapping a person opens the transactions between me and them — same set the row counts.
+const viewingPerson = ref<Member | null>(null)
+const personTransactions = computed(() =>
+  viewingPerson.value
+    ? [...pairwiseTxs(viewingPerson.value.id)].sort(
+        (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
+      )
+    : [],
+)
+
+/** Leave any open detail dialog and go edit the transaction. */
+function editTx(id: string) {
   viewingGroup.value = null
+  viewingPerson.value = null
   router.push({ name: 'tx-edit', params: { id } })
 }
 
@@ -330,19 +355,23 @@ function share() {
         </p>
         <div v-else class="divide-y divide-border">
           <div v-for="row in visibleRows" :key="row.member.id" class="flex items-center gap-3 py-3">
-            <MemberAvatar :member="row.member" />
-
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-text" :style="{ font: 'var(--font-body-strong)' }">
-                {{ row.member.name }}
-              </p>
-              <!-- Truncates rather than wrapping at 320px. The direction is not lost when it
-                   clips: the amount beside it is already dual-encoded with a sign and a
-                   colour (design-system.md §5.7). -->
-              <p class="truncate text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
-                {{ row.net > 0 ? '他欠你' : '你欠他' }} · {{ row.count }} 筆記錄
-              </p>
-            </div>
+            <button
+              class="flex min-w-0 flex-1 items-center gap-3 text-left"
+              @click="viewingPerson = row.member"
+            >
+              <MemberAvatar :member="row.member" />
+              <div class="min-w-0">
+                <p class="truncate text-text" :style="{ font: 'var(--font-body-strong)' }">
+                  {{ row.member.name }}
+                </p>
+                <!-- Truncates rather than wrapping at 320px. The direction is not lost when it
+                     clips: the amount beside it is already dual-encoded with a sign and a
+                     colour (design-system.md §5.7). -->
+                <p class="truncate text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+                  {{ row.net > 0 ? '他欠你' : '你欠他' }} · {{ row.count }} 筆記錄 ›
+                </p>
+              </div>
+            </button>
 
             <MoneyText :cents="row.net" tone="signed" size="strong" class="shrink-0" />
 
@@ -554,7 +583,32 @@ function share() {
           v-for="t in groupTransactions"
           :key="t.id"
           class="block w-full text-left"
-          @click="editFromGroup(t.id)"
+          @click="editTx(t.id)"
+        >
+          <TransactionRow :tx="t" />
+        </button>
+      </div>
+    </SplitDialog>
+
+    <!-- Person detail: the split bills between me and them -->
+    <SplitDialog
+      v-if="viewingPerson"
+      :title="`與 ${viewingPerson.name} 的分帳`"
+      @close="viewingPerson = null"
+    >
+      <p
+        v-if="personTransactions.length === 0"
+        class="py-6 text-center text-text-tertiary"
+        :style="{ font: 'var(--font-body)' }"
+      >
+        沒有共同的分帳記錄
+      </p>
+      <div v-else class="flex max-h-[60vh] flex-col divide-y divide-border overflow-y-auto">
+        <button
+          v-for="t in personTransactions"
+          :key="t.id"
+          class="block w-full text-left"
+          @click="editTx(t.id)"
         >
           <TransactionRow :tx="t" />
         </button>
