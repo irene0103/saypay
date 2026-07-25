@@ -82,7 +82,10 @@ export function balancesFor(debt: DebtMap, me: string): Balances {
 
   for (const other of counterparties) {
     const owedToMe = net(debt, other, me)
-    if (owedToMe === 0) continue
+    // Treat anything that rounds to $0 as settled. Money is shown in whole 元, so a row
+    // reading "$0" that still offers 結清 is confusing; sub-元 residue comes from split
+    // remainders (spec §5.2), not real debt.
+    if (Math.round(owedToMe / 100) === 0) continue
     perPerson.push({ member: other, net: owedToMe })
     if (owedToMe > 0) receivable += owedToMe
     else payable += -owedToMe
