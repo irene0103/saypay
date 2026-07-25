@@ -46,6 +46,15 @@ function seed() {
 }
 watch(() => ledger.currentBudget, seed, { immediate: true })
 
+/** Budgets can't be negative — clamp on input, and block the minus key. */
+function nonNeg(raw: string): number {
+  const n = parseFloat(raw)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+function blockNegativeKey(e: KeyboardEvent) {
+  if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') e.preventDefault()
+}
+
 /** Category limits sum higher than the total → surface it, but don't block (§3.5 has no such rule). */
 const categorySum = computed(() =>
   Object.values(perCategoryYuan.value).reduce((a, v) => a + (Number(v) || 0), 0),
@@ -85,13 +94,15 @@ async function save() {
       <div class="flex items-baseline gap-2">
         <span class="text-text-tertiary" :style="{ font: 'var(--font-display)' }">$</span>
         <input
-          v-model.number="totalYuan"
+          :value="totalYuan || ''"
           type="number"
           min="0"
           inputmode="numeric"
           class="money w-full border-none bg-transparent text-text outline-none"
           :style="{ font: 'var(--font-display)' }"
           aria-label="總預算"
+          @input="totalYuan = nonNeg(($event.target as HTMLInputElement).value)"
+          @keydown="blockNegativeKey"
         />
       </div>
     </AppCard>
@@ -119,12 +130,14 @@ async function save() {
           </span>
           <span class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">$</span>
           <input
-            v-model.number="perCategoryYuan[parent.id]"
+            :value="perCategoryYuan[parent.id] || ''"
             type="number"
             min="0"
             inputmode="numeric"
             class="input money !h-9 w-28 text-right"
             :aria-label="`${parent.name} 預算`"
+            @input="perCategoryYuan[parent.id] = nonNeg(($event.target as HTMLInputElement).value)"
+            @keydown="blockNegativeKey"
           />
         </div>
       </div>

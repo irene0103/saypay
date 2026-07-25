@@ -10,6 +10,7 @@
 import { computed, ref } from 'vue'
 
 import { computeSplits } from '@/core/split'
+import { toCents } from '@/core/money'
 import { MAX_MEMBERS, type Cents, type SplitItem, type SplitType, type Transaction, type TxType } from '@/core/types'
 
 export interface TransactionDraft {
@@ -62,7 +63,14 @@ export function useTransactionDraft(selfId: () => string) {
         paidBy: d.paidBy,
         members: d.members,
         splitType: d.splitType,
-        values: d.splitType === 'equal' ? undefined : d.values,
+        // 'custom' amounts are typed in 元 (the field shows $); convert to cents.
+        // 'percentage' values are already unit-less percents.
+        values:
+          d.splitType === 'equal'
+            ? undefined
+            : d.splitType === 'custom'
+              ? d.values.map((v) => toCents(v || 0))
+              : d.values,
       })
     } catch {
       // Mid-edit the values legitimately don't sum yet; `error` below is what the user sees.
@@ -80,9 +88,10 @@ export function useTransactionDraft(selfId: () => string) {
     if (d.members.length > MAX_MEMBERS) return `單筆最多 ${MAX_MEMBERS} 人`
 
     if (d.splitType === 'custom') {
-      const sum = d.values.reduce((a, b) => a + (b || 0), 0)
-      if (sum < d.amount) return `還差 $${Math.round((d.amount - sum) / 100)}`
-      if (sum > d.amount) return `超出 $${Math.round((sum - d.amount) / 100)}`
+      // Compare in cents: values are 元, d.amount is cents.
+      const sumCents = d.values.reduce((a, b) => a + toCents(b || 0), 0)
+      if (sumCents < d.amount) return `還差 $${Math.round((d.amount - sumCents) / 100)}`
+      if (sumCents > d.amount) return `超出 $${Math.round((sumCents - d.amount) / 100)}`
     }
 
     if (d.splitType === 'percentage') {
@@ -162,8 +171,11 @@ export function useTransactionDraft(selfId: () => string) {
       paidBy: tx.paidBy,
       members: [...tx.members],
       splitType: tx.splitType,
+      // custom values are edited in 元, but stored as cents — convert back.
       values:
-        tx.splitType === 'custom' ? tx.members.map((m) => shareOf(tx.splits, m)) : [],
+        tx.splitType === 'custom'
+          ? tx.members.map((m) => shareOf(tx.splits, m) / 100)
+          : [],
       groupId: tx.groupId,
       inferred: new Set(),
     }

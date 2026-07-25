@@ -20,6 +20,7 @@ import {
   Users,
   Divide,
   FileText,
+  FolderOpen,
   Trash2,
   X,
 } from '@lucide/vue'
@@ -41,7 +42,7 @@ const toast = useToastStore()
 const route = useRoute()
 const router = useRouter()
 
-const { draft, splits, error, canSave, toTransaction, resetForNext, loadFrom } =
+const { draft, splits, error, toTransaction, resetForNext, loadFrom } =
   useTransactionDraft(() => ledger.selfId)
 
 // ---- Amount via the in-app keypad (decimal 元 string) ----
@@ -53,7 +54,7 @@ watch(amountStr, (v) => {
 const amountDisplay = computed(() => amountStr.value || '0')
 
 // ---- Which row's picker is open; the keypad and pickers are mutually exclusive ----
-type Row = 'category' | 'date' | 'note' | 'payer' | 'members' | 'split'
+type Row = 'category' | 'date' | 'note' | 'payer' | 'members' | 'split' | 'group'
 const activeRow = ref<Row | null>(null)
 const showKeypad = ref(true)
 
@@ -65,6 +66,12 @@ function focusAmount() {
   activeRow.value = null
   showKeypad.value = true
 }
+
+// ---- Group (a view grouping for the transaction, spec §3.3.2 / §4.3) ----
+const liveGroups = computed(() => ledger.groups.filter((g) => !g.deletedAt))
+const selectedGroupName = computed(
+  () => liveGroups.value.find((g) => g.id === draft.value.groupId)?.name ?? '',
+)
 
 // ---- Categories (leaves only; tapping + adds one, spec §4.6) ----
 const leafCategories = computed(() => {
@@ -146,7 +153,24 @@ function syncValues() {
   if (d.splitType === 'equal') return
   d.values = d.members.map((_, i) => d.values[i] ?? 0)
 }
-watch(() => draft.value.splitType, syncValues)
+
+/** Split 金額/百分比 can never be negative — clamp on input, and block the minus key so a
+ *  leading "-" never even appears. */
+function setSplitValue(i: number, raw: string) {
+  const n = parseFloat(raw)
+  draft.value.values[i] = Number.isFinite(n) && n > 0 ? n : 0
+}
+function blockNegativeKey(e: KeyboardEvent) {
+  if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') e.preventDefault()
+}
+// Switching mode resets the numbers: 元 and % aren't interchangeable, so a leftover
+// "200" from 指定金額 would read as 200% under 百分比.
+watch(
+  () => draft.value.splitType,
+  () => {
+    draft.value.values = draft.value.members.map(() => 0)
+  },
+)
 watch(
   () => draft.value.type,
   (t) => {
@@ -206,8 +230,27 @@ function leave() {
   else router.replace({ name: 'ledger' })
 }
 
+/**
+ * Why this save can't go through, or null if it can. The 儲存 button stays enabled — the
+ * user asked for a tappable button that explains the problem, not a greyed-out one — so
+ * this drives a toast and opens the offending row on tap.
+ */
+function blockReason(): { message: string; row?: Row; amount?: boolean } | null {
+  const d = draft.value
+  if (d.amount <= 0) return { message: '請先輸入金額', amount: true }
+  if (!d.category) return { message: '請選擇類別', row: 'category' }
+  if (error.value) return { message: error.value, row: 'split' }
+  return null
+}
+
 async function save(andAnother = false) {
-  if (!canSave.value) return
+  const blocked = blockReason()
+  if (blocked) {
+    toast.show(blocked.message)
+    if (blocked.amount) focusAmount()
+    else if (blocked.row) activeRow.value = blocked.row
+    return
+  }
   // No title row in this layout — fall back to the category name (spec keeps title required
   // in the model, so it must never be empty).
   if (!draft.value.title.trim()) draft.value.title = selectedCategoryName.value || '記帳'
@@ -244,9 +287,8 @@ async function remove() {
         {{ props.id ? '編輯記帳' : '新增記帳' }}
       </h1>
       <button
-        class="px-2 text-sage-700 disabled:text-text-tertiary"
+        class="px-2 text-sage-700"
         :style="{ font: 'var(--font-body-strong)' }"
-        :disabled="!canSave"
         @click="save()"
       >
         儲存
@@ -443,11 +485,14 @@ async function remove() {
                 {{ memberById.get(id)?.name }}
               </span>
               <input
-                v-model.number="draft.values[i]"
+                :value="draft.values[i] || ''"
                 type="number"
+                min="0"
                 inputmode="decimal"
                 class="input money !h-9 w-24 text-right"
                 :placeholder="draft.splitType === 'percentage' ? '%' : '$'"
+                @input="setSplitValue(i, ($event.target as HTMLInputElement).value)"
+                @keydown="blockNegativeKey"
               />
             </div>
           </div>
@@ -488,6 +533,34 @@ async function remove() {
         </div>
       </div>
 
+      <!-- Group (optional; a transaction belongs to at most one group, spec §4.3) -->
+      <div v-if="liveGroups.length">
+        <FormRow :icon="FolderOpen" label="群組" :active="activeRow === 'group'" @tap="openRow('group')">
+          <span :class="selectedGroupName ? 'text-text' : 'text-text-tertiary'">
+            {{ selectedGroupName || '無' }}
+          </span>
+        </FormRow>
+        <div v-if="activeRow === 'group'" class="flex flex-wrap gap-2 pb-3">
+          <button
+            class="h-9 rounded-md px-4 transition-colors"
+            :class="!draft.groupId ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
+            :style="{ font: 'var(--font-body)' }"
+            @click="draft.groupId = undefined"
+          >
+            無
+          </button>
+          <button
+            v-for="g in liveGroups"
+            :key="g.id"
+            class="h-9 rounded-md px-4 transition-colors"
+            :class="draft.groupId === g.id ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
+            :style="{ font: 'var(--font-body)' }"
+            @click="draft.groupId = g.id"
+          >
+            {{ g.name }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Bottom bar: the keypad (while entering the amount) sits above the action buttons. -->
@@ -495,10 +568,10 @@ async function remove() {
       <NumberPad v-if="showKeypad" v-model="amountStr" />
       <div class="flex flex-col gap-2 border-t border-border px-4 py-3">
         <div class="flex gap-2">
-          <button v-if="!props.id" class="btn-secondary flex-1" :disabled="!canSave" @click="save(true)">
+          <button v-if="!props.id" class="btn-secondary flex-1" @click="save(true)">
             儲存並再記一筆
           </button>
-          <button class="btn-primary flex-1" :disabled="!canSave" @click="save()">儲存</button>
+          <button class="btn-primary flex-1" @click="save()">儲存</button>
         </div>
         <button v-if="props.id" class="btn-danger w-full" @click="remove">
           <Trash2 :size="18" /> 刪除這筆

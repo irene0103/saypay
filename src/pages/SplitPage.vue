@@ -13,14 +13,15 @@
  * 催收 does not exist — it was cut from the spec in favour of 分享 (§3.3.1).
  */
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { Share2, Plus, Trash2 } from '@lucide/vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Share2, Plus, Trash2, Pencil } from '@lucide/vue'
 
 import AppCard from '@/components/ui/AppCard.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
 import MemberAvatar from '@/components/ui/MemberAvatar.vue'
 import SplitDialog from '@/components/split/SplitDialog.vue'
 import ConfirmDialog from '@/components/split/ConfirmDialog.vue'
+import TransactionRow from '@/components/ledger/TransactionRow.vue'
 import { buildDebtMap, net } from '@/core/debt'
 import { formatMoney, evalAmountExpression } from '@/core/money'
 import { useLedgerStore } from '@/stores/ledger'
@@ -30,6 +31,7 @@ import type { Cents, Member } from '@/core/types'
 const ledger = useLedgerStore()
 const toast = useToastStore()
 const route = useRoute()
+const router = useRouter()
 
 const tab = ref<'people' | 'groups'>('people')
 
@@ -161,15 +163,27 @@ async function removeSettlement(id: string) {
   await ledger.softDeleteSettlement(id)
 }
 
-// ---- Create group (spec §3.3.2) ----
-const creatingGroup = ref(false)
+// ---- Create / edit group (spec §3.3.2) ----
+const groupDialog = ref(false)
 const groupName = ref('')
 const groupMemberIds = ref<string[]>([])
+/** null → creating; otherwise the id (and createdAt) of the group being edited. */
+const editingGroup = ref<{ id: string; createdAt: string } | null>(null)
 
 function openCreateGroup() {
+  editingGroup.value = null
   groupName.value = ''
   groupMemberIds.value = ledger.selfId ? [ledger.selfId] : []
-  creatingGroup.value = true
+  addingGroupMember.value = false
+  groupDialog.value = true
+}
+
+function openEditGroup(g: { id: string; name: string; memberIds: string[]; createdAt: string }) {
+  editingGroup.value = { id: g.id, createdAt: g.createdAt }
+  groupName.value = g.name
+  groupMemberIds.value = [...g.memberIds]
+  addingGroupMember.value = false
+  groupDialog.value = true
 }
 
 function toggleGroupMember(id: string) {
@@ -178,16 +192,65 @@ function toggleGroupMember(id: string) {
   else groupMemberIds.value.push(id)
 }
 
-async function commitCreateGroup() {
+// Add a brand-new member from inside the group dialog, then include them in the group.
+const AVATAR_COLORS = ['#8A9C74', '#A9B58C', '#C7B98E', '#B08E6A', '#8FA0A0', '#C0A9A0']
+const addingGroupMember = ref(false)
+const newGroupMemberName = ref('')
+async function confirmNewGroupMember() {
+  const name = newGroupMemberName.value.trim()
+  if (!name) {
+    addingGroupMember.value = false
+    return
+  }
+  const id = crypto.randomUUID()
+  const res = await ledger.saveMember({
+    id,
+    name,
+    avatarColor: AVATAR_COLORS[ledger.liveMembers.length % AVATAR_COLORS.length]!,
+    isSelf: false,
+  })
+  if (!res.ok) {
+    if (res.reason) toast.show(res.reason)
+    return
+  }
+  groupMemberIds.value.push(id)
+  newGroupMemberName.value = ''
+  addingGroupMember.value = false
+}
+
+async function commitGroup() {
   const name = groupName.value.trim()
   if (!name) return
+  // Editing reuses the same id so saveGroup upserts; creating mints a new one.
   await ledger.saveGroup({
-    id: crypto.randomUUID(),
+    id: editingGroup.value?.id ?? crypto.randomUUID(),
     name,
     memberIds: [...groupMemberIds.value],
-    createdAt: new Date().toISOString(),
+    createdAt: editingGroup.value?.createdAt ?? new Date().toISOString(),
   })
-  creatingGroup.value = false
+  groupDialog.value = false
+}
+
+// Deleting keeps the group's transactions (their groupId is cleared, spec §3.6) — confirm first.
+const deletingGroup = ref<{ id: string; name: string } | null>(null)
+async function confirmDeleteGroup() {
+  if (deletingGroup.value) await ledger.deleteGroup(deletingGroup.value.id)
+  deletingGroup.value = null
+}
+
+// Tapping a group card opens its transaction list (spec §3.3.2 — the group is a view over
+// its transactions).
+const viewingGroup = ref<{ id: string; name: string } | null>(null)
+const groupTransactions = computed(() =>
+  viewingGroup.value
+    ? ledger.liveTransactions
+        .filter((t) => t.groupId === viewingGroup.value!.id)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    : [],
+)
+function editFromGroup(id: string) {
+  viewingGroup.value = null
+  router.push({ name: 'tx-edit', params: { id } })
 }
 
 // ---- Share (spec §3.11 — backend RPC, Phase 5, not built) ----
@@ -304,21 +367,36 @@ function share() {
     <template v-else>
       <div class="flex flex-col gap-3">
         <article v-for="g in groupCards" :key="g.group.id" class="card">
-          <div class="flex items-start justify-between">
-            <h2 class="text-text" :style="{ font: 'var(--font-h2)' }">{{ g.group.name }}</h2>
-            <MoneyText :cents="g.subtotal" tone="signed" size="strong" />
+          <div class="flex items-start justify-between gap-2">
+            <h2 class="min-w-0 flex-1 truncate text-text" :style="{ font: 'var(--font-h2)' }">
+              {{ g.group.name }}
+            </h2>
+            <MoneyText :cents="g.subtotal" tone="signed" size="strong" class="shrink-0" />
+            <button
+              class="shrink-0 text-text-tertiary hover:text-sage-700"
+              aria-label="編輯群組"
+              @click="openEditGroup(g.group)"
+            >
+              <Pencil :size="16" />
+            </button>
+            <button
+              class="shrink-0 text-text-tertiary hover:text-payable"
+              aria-label="刪除群組"
+              @click="deletingGroup = { id: g.group.id, name: g.group.name }"
+            >
+              <Trash2 :size="16" />
+            </button>
           </div>
-          <div class="mt-3 flex items-center gap-2">
-            <MemberAvatar
-              v-for="m in g.members"
-              :key="m.id"
-              :member="m"
-              :size="20"
-            />
-            <span class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+          <button
+            class="mt-3 flex w-full items-center gap-2 text-left"
+            @click="viewingGroup = { id: g.group.id, name: g.group.name }"
+          >
+            <MemberAvatar v-for="m in g.members" :key="m.id" :member="m" :size="20" />
+            <span class="flex-1 text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
               {{ g.count }} 筆記錄
             </span>
-          </div>
+            <span class="text-sage-700" :style="{ font: 'var(--font-caption)' }">看明細 ›</span>
+          </button>
         </article>
 
         <button class="btn-secondary w-full" @click="openCreateGroup">
@@ -400,14 +478,18 @@ function share() {
       </div>
     </SplitDialog>
 
-    <!-- Create group -->
-    <SplitDialog v-if="creatingGroup" title="建立群組" @close="creatingGroup = false">
+    <!-- Create / edit group -->
+    <SplitDialog
+      v-if="groupDialog"
+      :title="editingGroup ? '編輯群組' : '建立群組'"
+      @close="groupDialog = false"
+    >
       <input
         v-model="groupName"
         class="input w-full"
         placeholder="群組名稱（旅遊 / 聚餐 / 室友…）"
         autofocus
-        @keyup.enter="commitCreateGroup"
+        @keyup.enter="commitGroup"
       />
       <p class="mt-4 text-text-secondary" :style="{ font: 'var(--font-label)' }">成員</p>
       <div class="mt-2 flex flex-wrap gap-2">
@@ -421,11 +503,60 @@ function share() {
           <MemberAvatar :member="m" :size="20" />
           <span :style="{ font: 'var(--font-caption)' }">{{ m.name }}</span>
         </button>
+
+        <input
+          v-if="addingGroupMember"
+          v-model="newGroupMemberName"
+          class="input !h-8 w-28"
+          placeholder="新成員名稱"
+          autofocus
+          @keyup.enter="confirmNewGroupMember"
+          @blur="confirmNewGroupMember"
+        />
+        <button
+          v-else
+          class="flex h-8 items-center gap-1 rounded-pill bg-surface-alt px-3 text-sage-700"
+          :style="{ font: 'var(--font-caption)' }"
+          @click="addingGroupMember = true"
+        >
+          <Plus :size="14" /> 新增成員
+        </button>
       </div>
       <div class="mt-5 flex gap-2">
-        <button class="btn-ghost flex-1" @click="creatingGroup = false">取消</button>
-        <button class="btn-primary flex-1" :disabled="!groupName.trim()" @click="commitCreateGroup">
-          建立
+        <button class="btn-ghost flex-1" @click="groupDialog = false">取消</button>
+        <button class="btn-primary flex-1" :disabled="!groupName.trim()" @click="commitGroup">
+          {{ editingGroup ? '儲存' : '建立' }}
+        </button>
+      </div>
+    </SplitDialog>
+
+    <ConfirmDialog
+      v-if="deletingGroup"
+      title="刪除群組"
+      :message="`確定刪除「${deletingGroup.name}」？群組內的記錄會保留，只是不再歸到這個群組。`"
+      confirm-text="刪除"
+      danger
+      @close="deletingGroup = null"
+      @confirm="confirmDeleteGroup"
+    />
+
+    <!-- Group detail: the group's transactions -->
+    <SplitDialog v-if="viewingGroup" :title="viewingGroup.name" @close="viewingGroup = null">
+      <p
+        v-if="groupTransactions.length === 0"
+        class="py-6 text-center text-text-tertiary"
+        :style="{ font: 'var(--font-body)' }"
+      >
+        這個群組還沒有記錄
+      </p>
+      <div v-else class="flex max-h-[60vh] flex-col divide-y divide-border overflow-y-auto">
+        <button
+          v-for="t in groupTransactions"
+          :key="t.id"
+          class="block w-full text-left"
+          @click="editFromGroup(t.id)"
+        >
+          <TransactionRow :tx="t" />
         </button>
       </div>
     </SplitDialog>
