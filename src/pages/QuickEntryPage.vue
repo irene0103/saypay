@@ -87,7 +87,9 @@ function toCard(p: ParsedEntry): Card {
 }
 
 // Re-parse as the sentence changes. Card edits made afterwards stick until the text changes.
-watch(text, (t) => {
+// Also once the store finishes loading: on a cold start the first words can arrive before
+// the categories and members they're matched against.
+watch([text, () => ledger.loaded], ([t]) => {
   cards.value = parseEntries(t, {
     today: new Date(),
     selfId: ledger.selfId,
