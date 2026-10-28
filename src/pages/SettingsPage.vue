@@ -5,11 +5,12 @@
  * Note there is no 帳戶管理 row: the account / payment-method concept was removed from the
  * spec entirely (decision #28), so the wireframe's row is stale.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import {
   ChevronRight,
   Database,
   Download,
+  Upload,
   Link2,
   Users,
   Tag,
@@ -23,6 +24,7 @@ import {
 import { useRouter } from 'vue-router'
 
 import AppCard from '@/components/ui/AppCard.vue'
+import SplitDialog from '@/components/split/SplitDialog.vue'
 import { useLedgerStore } from '@/stores/ledger'
 import { useToastStore } from '@/stores/toast'
 import {
@@ -32,6 +34,7 @@ import {
   exportJson,
   withBom,
 } from '@/lib/export'
+import { isEmptyPlan, parseBackup, planRestore, type RestorePlan, type TableName } from '@/lib/restore'
 
 const ledger = useLedgerStore()
 const toast = useToastStore()
@@ -93,6 +96,79 @@ function doExportSettlements() {
   )
   download('saypay-settlements.csv', withBom(csv), 'text/csv;charset=utf-8')
 }
+
+// ---- Restore (spec §3.12 L4): pick → validate → show what will change → confirm ----
+const fileInput = ref<HTMLInputElement | null>(null)
+// shallowRef: the plan is read-only data for the dialog, no need to make thousands of rows reactive.
+const pending = shallowRef<{ plan: RestorePlan; exportedAt?: string; invalid: number } | null>(null)
+const restoring = ref(false)
+
+async function onPickBackup(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  // Clear it so picking the same file again still fires `change`.
+  input.value = ''
+  if (!file) return
+
+  const parsed = parseBackup(await file.text())
+  if (!parsed.ok) return toast.show(parsed.reason)
+
+  // Compare against EVERY row, tombstones included: a row deleted here must not come back
+  // as "new" just because the backup predates the delete.
+  const plan = planRestore(parsed.rows, {
+    transactions: ledger.transactions,
+    settlements: ledger.settlements,
+    members: ledger.members,
+    groups: ledger.groups,
+    categories: ledger.categories,
+    budgets: ledger.budgets,
+  })
+  if (isEmptyPlan(plan)) return toast.show('備份裡沒有新的資料，帳本已是最新')
+  pending.value = { plan, exportedAt: parsed.exportedAt, invalid: parsed.invalid }
+}
+
+const TABLE_LABELS: [TableName, string, string][] = [
+  ['transactions', '記帳', '筆'],
+  ['settlements', '結清記錄', '筆'],
+  ['members', '成員', '位'],
+  ['groups', '群組', '個'],
+  ['categories', '類別', '個'],
+  ['budgets', '月預算', '個月'],
+]
+
+const restoreLines = computed(() => {
+  const p = pending.value?.plan
+  if (!p) return []
+  return TABLE_LABELS.flatMap(([key, label, unit]) => {
+    const parts = [
+      p.added[key] ? `新增 ${p.added[key]} ${unit}` : '',
+      p.updated[key] ? `更新 ${p.updated[key]} ${unit}` : '',
+    ].filter(Boolean)
+    return parts.length ? [`${label}：${parts.join('、')}`] : []
+  })
+})
+
+const exportedAtLabel = computed(() => {
+  const at = pending.value?.exportedAt
+  if (!at) return ''
+  const d = new Date(at)
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+})
+
+async function confirmRestore() {
+  if (!pending.value) return
+  restoring.value = true
+  try {
+    await ledger.applyRestore(pending.value.plan.rows)
+    const n = pending.value.plan.added.transactions + pending.value.plan.updated.transactions
+    toast.show(n ? `已還原，帳本更新了 ${n} 筆記帳` : '已還原')
+    pending.value = null
+  } catch {
+    toast.show('還原失敗，帳本沒有被修改')
+  } finally {
+    restoring.value = false
+  }
+}
 </script>
 
 <template>
@@ -106,7 +182,7 @@ function doExportSettlements() {
 
     <!-- Export sits at the top of its own card, not buried: it is the last line of defence
          against every other kind of data loss (spec §3.12 L4). -->
-    <AppCard title="匯出資料">
+    <AppCard title="備份與還原">
       <div class="flex flex-col gap-2">
         <button class="btn-secondary w-full justify-start" @click="doExportJson">
           <Download :size="18" /> 匯出 JSON（完整備份，可還原）
@@ -117,8 +193,47 @@ function doExportSettlements() {
         <button class="btn-secondary w-full justify-start" @click="doExportSettlements">
           <Download :size="18" /> 匯出 CSV（結清記錄）
         </button>
+        <button class="btn-secondary w-full justify-start" @click="fileInput?.click()">
+          <Upload :size="18" /> 從 JSON 備份還原
+        </button>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="application/json,.json"
+          class="hidden"
+          @change="onPickBackup"
+        />
+        <p class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+          還原會合併到目前的帳本，不會刪除現有資料。重複還原同一個檔案也不會產生重複記錄。
+        </p>
       </div>
     </AppCard>
+
+    <!-- Restore confirmation: say exactly what will change before anything is written. -->
+    <SplitDialog v-if="pending" title="從備份還原" @close="pending = null">
+      <p v-if="exportedAtLabel" class="text-text-secondary" :style="{ font: 'var(--font-caption)' }">
+        備份時間：{{ exportedAtLabel }}
+      </p>
+      <ul class="mt-3 flex flex-col gap-1 text-text" :style="{ font: 'var(--font-body)' }">
+        <li v-for="line in restoreLines" :key="line">{{ line }}</li>
+      </ul>
+      <p
+        v-if="pending.plan.matchedByName"
+        class="mt-3 text-text-secondary"
+        :style="{ font: 'var(--font-caption)' }"
+      >
+        有 {{ pending.plan.matchedByName }} 個成員或類別和這台裝置上的同名，會合併成同一個。
+      </p>
+      <p v-if="pending.invalid" class="mt-2 text-payable" :style="{ font: 'var(--font-caption)' }">
+        有 {{ pending.invalid }} 筆資料格式不正確，會略過。
+      </p>
+      <template #footer>
+        <button class="btn-ghost flex-1" :disabled="restoring" @click="pending = null">取消</button>
+        <button class="btn-primary flex-1" :disabled="restoring" @click="confirmRestore">
+          {{ restoring ? '還原中…' : '確定還原' }}
+        </button>
+      </template>
+    </SplitDialog>
 
     <AppCard title="記帳提醒">
       <div class="flex items-center justify-between">

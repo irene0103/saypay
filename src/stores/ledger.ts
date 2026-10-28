@@ -16,6 +16,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import { db, type OutboxEntry } from '@/db'
+import type { LedgerRows } from '@/lib/restore'
 import { balancesFor, buildDebtMap, net } from '@/core/debt'
 import { localMonthKey, periodStats, spendByCategory, rollUpToParents, streakDays } from '@/core/stats'
 import {
@@ -325,6 +326,43 @@ export const useLedgerStore = defineStore('ledger', () => {
     await enqueue('budgets', row.month, 'upsert')
   }
 
+  // ---- Restore (spec §3.12 L4) ----
+  /**
+   * Write a restore plan (see lib/restore.ts) in ONE IndexedDB transaction, outbox rows
+   * included — a half-applied restore would leave debts pointing at members that never
+   * landed. Then reload memory from IndexedDB rather than patching six arrays by hand.
+   */
+  async function applyRestore(input: LedgerRows) {
+    // The plan may have sat in a ref while the user confirmed — unwrap the proxies first.
+    const rows = plain(input)
+    const now = new Date().toISOString()
+    const outbox: OutboxEntry[] = []
+    const queue = (table: OutboxEntry['table'], rowId: string) =>
+      outbox.push({ id: crypto.randomUUID(), table, rowId, op: 'upsert', queuedAt: now })
+
+    rows.transactions.forEach((r) => queue('transactions', r.id))
+    rows.settlements.forEach((r) => queue('settlements', r.id))
+    rows.members.forEach((r) => queue('members', r.id))
+    rows.groups.forEach((r) => queue('groups', r.id))
+    rows.categories.forEach((r) => queue('categories', r.id))
+    rows.budgets.forEach((r) => queue('budgets', r.month))
+
+    await db.transaction(
+      'rw',
+      [db.transactions, db.settlements, db.members, db.groups, db.categories, db.budgets, db.outbox],
+      async () => {
+        await db.transactions.bulkPut(rows.transactions)
+        await db.settlements.bulkPut(rows.settlements)
+        await db.members.bulkPut(rows.members)
+        await db.groups.bulkPut(rows.groups)
+        await db.categories.bulkPut(rows.categories)
+        await db.budgets.bulkPut(rows.budgets)
+        await db.outbox.bulkPut(outbox)
+      },
+    )
+    await load()
+  }
+
   /** Drop every in-memory row. Used on logout, where residue would be a data leak (spec §3.12). */
   function $reset() {
     transactions.value = []
@@ -380,6 +418,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     saveGroup,
     setGroupArchived,
     deleteGroup,
+    applyRestore,
     $reset,
   }
 })
