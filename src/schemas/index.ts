@@ -89,6 +89,7 @@ export const groupSchema = z.object({
   name: z.string().trim().min(1),
   memberIds: z.array(z.string().min(1)),
   createdAt: isoDate,
+  archivedAt: isoDate.optional(),
   deletedAt: isoDate.optional(),
 })
 

@@ -117,6 +117,31 @@ function splitPercentage(
   return splits
 }
 
+/**
+ * 「剩餘自動分攤」 for a custom split (spec §3.2.1): whatever the typed shares leave over
+ * is divided equally among the members still at 0. Same remainder rule as an equal split
+ * (§5.2) — the odd cents go to the payer if they're in that pool, else its first member.
+ *
+ * `values` are cents, indexed like `members`. Returns null when there's nothing to fill:
+ * no member is still at 0, or the typed shares already reach the amount.
+ */
+export function fillRemaining(
+  amount: Cents,
+  paidBy: string,
+  members: string[],
+  values: Cents[],
+): Cents[] | null {
+  const open = members.filter((_, i) => !values[i])
+  const left = amount - values.reduce((a, v) => a + (v || 0), 0)
+  if (open.length === 0 || left <= 0) return null
+
+  const base = Math.floor(left / open.length)
+  const carrier = remainderCarrier(paidBy, open)
+  return members.map((m, i) =>
+    values[i] ? values[i]! : base + (m === carrier ? left - base * open.length : 0),
+  )
+}
+
 /** Invariant from spec §4.4. A violation here means the ledger would silently drift. */
 function assertSum(splits: SplitItem[], amount: Cents): void {
   const sum = splits.reduce((a, s) => a + s.shareAmount, 0)

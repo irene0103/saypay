@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeSplits } from '@/core/split'
+import { computeSplits, fillRemaining } from '@/core/split'
 import { balancesFor, buildDebtMap, net } from '@/core/debt'
 import { myShare, periodStats, streakDays } from '@/core/stats'
 import { evalAmountExpression, formatMoney, toCents } from '@/core/money'
@@ -116,6 +116,30 @@ describe('computeSplits — spec §5.1, §5.2', () => {
     expect(() =>
       computeSplits({ amount: 2100, paidBy: 'm0', members, splitType: 'equal' }),
     ).toThrow(/MAX_MEMBERS/)
+  })
+})
+
+describe('fillRemaining — spec §3.2.1 剩餘自動分攤', () => {
+  it('splits what is left among the members still at 0', () => {
+    // $600: Amy ordered the $300 dish, me and Ben split the rest.
+    expect(fillRemaining(60000, ME, [ME, AMY, BEN], [0, 30000, 0])).toEqual([15000, 30000, 15000])
+  })
+
+  it('gives the odd cents to the payer when they are in the pool', () => {
+    const filled = fillRemaining(10000, BEN, [ME, AMY, BEN], [0, 0, 0])!
+    expect(filled).toEqual([3333, 3333, 3334])
+    expect(filled.reduce((a, b) => a + b, 0)).toBe(10000)
+  })
+
+  it('gives the odd cents to the first open member when the payer is not in the pool', () => {
+    expect(fillRemaining(10000, AMY, [ME, AMY, BEN], [0, 5000, 0])).toEqual([2500, 5000, 2500])
+    expect(fillRemaining(10001, AMY, [ME, AMY, BEN], [0, 5000, 0])).toEqual([2501, 5000, 2500])
+  })
+
+  it('returns null when nothing is left or nobody is open', () => {
+    expect(fillRemaining(60000, ME, [ME, AMY], [60000, 0])).toBeNull()
+    expect(fillRemaining(60000, ME, [ME, AMY], [70000, 0])).toBeNull()
+    expect(fillRemaining(60000, ME, [ME, AMY], [20000, 10000])).toBeNull()
   })
 })
 

@@ -9,7 +9,7 @@
  * Deliberately NO 帳戶 / 付款方式 row (spec decision #28): nothing depends on it and it
  * slows down entry. The split toggle is hidden for income (spec §5.6).
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Check,
@@ -42,7 +42,7 @@ const toast = useToastStore()
 const route = useRoute()
 const router = useRouter()
 
-const { draft, splits, error, toTransaction, resetForNext, loadFrom } =
+const { draft, splits, error, toTransaction, resetForNext, fillRemainingCustom, loadFrom } =
   useTransactionDraft(() => ledger.selfId)
 
 // ---- Amount via the in-app keypad (decimal 元 string) ----
@@ -68,10 +68,32 @@ function focusAmount() {
 }
 
 // ---- Group (a view grouping for the transaction, spec §3.3.2 / §4.3) ----
-const liveGroups = computed(() => ledger.groups.filter((g) => !g.deletedAt))
+// Archived groups are closed for new entries, but a row that already belongs to one must
+// still show (and keep) it.
+const liveGroups = computed(() =>
+  ledger.groups.filter((g) => !g.deletedAt && (!g.archivedAt || g.id === draft.value.groupId)),
+)
 const selectedGroupName = computed(
   () => liveGroups.value.find((g) => g.id === draft.value.groupId)?.name ?? '',
 )
+
+/**
+ * 從群組帶入 (spec §3.2.1): on a new entry, picking a group makes its members the
+ * participants and turns the split on — a group exists to be split within. Participants
+ * stay editable afterwards. When editing an existing row the group is just re-tagged:
+ * silently replacing its participants would rewrite a debt that was already recorded.
+ */
+function pickGroup(id: string | undefined) {
+  draft.value.groupId = id
+  const g = id ? liveGroups.value.find((x) => x.id === id) : undefined
+  if (!g || props.id) return
+  const ids = g.memberIds.filter((m) => memberById.value.has(m)).slice(0, MAX_MEMBERS)
+  if (ids.length === 0) return
+  if (draft.value.type === 'expense') draft.value.isSplit = true
+  draft.value.members = ids
+  // The old per-member values were indexed by the old participant list.
+  draft.value.values = ids.map(() => 0)
+}
 
 // ---- Categories (leaves only; tapping + adds one, spec §4.6) ----
 const leafCategories = computed(() => {
@@ -163,6 +185,9 @@ function setSplitValue(i: number, raw: string) {
 function blockNegativeKey(e: KeyboardEvent) {
   if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') e.preventDefault()
 }
+function fillRemaining() {
+  if (!fillRemainingCustom()) toast.show('沒有剩餘金額可分攤，或每個人都已填寫')
+}
 // Switching mode resets the numbers: 元 and % aren't interchangeable, so a leftover
 // "200" from 指定金額 would read as 200% under 百分比.
 watch(
@@ -210,16 +235,30 @@ watch(
 )
 
 // ---- Load / save ----
-onMounted(() => {
-  if (route.query.split === '1') draft.value.isSplit = true
-  if (props.id) {
-    const tx = ledger.liveTransactions.find((t) => t.id === props.id)
-    if (tx) {
-      loadFrom(tx)
-      amountStr.value = String(Math.round(tx.amount / 100))
+// On a cold start (a refresh, or a deep link like /tx/new?group=…) this page can mount
+// before the store has loaded, so wait for it rather than reading empty arrays.
+let initialized = false
+watch(
+  () => ledger.loaded,
+  (loaded) => {
+    if (!loaded || initialized) return
+    initialized = true
+    if (props.id) {
+      const tx = ledger.liveTransactions.find((t) => t.id === props.id)
+      if (tx) {
+        loadFrom(tx)
+        // Not rounded: an amount with 角/分 must come back as typed.
+        amountStr.value = String(tx.amount / 100)
+      }
+      return
     }
-  }
-})
+    // Entry points on the 分帳 page open the form already in split mode, optionally
+    // inside a group (spec §3.3).
+    if (route.query.split === '1') draft.value.isSplit = true
+    if (typeof route.query.group === 'string') pickGroup(route.query.group)
+  },
+  { immediate: true },
+)
 
 const existing = computed(() =>
   props.id ? ledger.liveTransactions.find((t) => t.id === props.id) : undefined,
@@ -352,6 +391,36 @@ async function remove() {
             :class="draft.isSplit ? 'translate-x-5.5' : 'translate-x-0.5'"
           />
         </button>
+      </div>
+
+      <!-- Group (optional; a transaction belongs to at most one group, spec §4.3). Sits right
+           under the toggle because picking one fills in the participants below it. -->
+      <div v-if="liveGroups.length">
+        <FormRow :icon="FolderOpen" label="群組" :active="activeRow === 'group'" @tap="openRow('group')">
+          <span :class="selectedGroupName ? 'text-text' : 'text-text-tertiary'">
+            {{ selectedGroupName || '無' }}
+          </span>
+        </FormRow>
+        <div v-if="activeRow === 'group'" class="flex flex-wrap gap-2 pb-3">
+          <button
+            class="h-9 rounded-md px-4 transition-colors"
+            :class="!draft.groupId ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
+            :style="{ font: 'var(--font-body)' }"
+            @click="pickGroup(undefined)"
+          >
+            無
+          </button>
+          <button
+            v-for="g in liveGroups"
+            :key="g.id"
+            class="h-9 rounded-md px-4 transition-colors"
+            :class="draft.groupId === g.id ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
+            :style="{ font: 'var(--font-body)' }"
+            @click="pickGroup(g.id)"
+          >
+            {{ g.name }}
+          </button>
+        </div>
       </div>
 
       <!-- Category -->
@@ -497,6 +566,15 @@ async function remove() {
             </div>
           </div>
 
+          <button
+            v-if="draft.splitType === 'custom'"
+            class="self-start text-sage-700"
+            :style="{ font: 'var(--font-caption)' }"
+            @click="fillRemaining"
+          >
+            其餘平分：空白的人平分剩下的金額
+          </button>
+
           <p v-if="error" class="text-payable" :style="{ font: 'var(--font-caption)' }">{{ error }}</p>
           <p
             v-else-if="splits.length"
@@ -533,34 +611,6 @@ async function remove() {
         </div>
       </div>
 
-      <!-- Group (optional; a transaction belongs to at most one group, spec §4.3) -->
-      <div v-if="liveGroups.length">
-        <FormRow :icon="FolderOpen" label="群組" :active="activeRow === 'group'" @tap="openRow('group')">
-          <span :class="selectedGroupName ? 'text-text' : 'text-text-tertiary'">
-            {{ selectedGroupName || '無' }}
-          </span>
-        </FormRow>
-        <div v-if="activeRow === 'group'" class="flex flex-wrap gap-2 pb-3">
-          <button
-            class="h-9 rounded-md px-4 transition-colors"
-            :class="!draft.groupId ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
-            :style="{ font: 'var(--font-body)' }"
-            @click="draft.groupId = undefined"
-          >
-            無
-          </button>
-          <button
-            v-for="g in liveGroups"
-            :key="g.id"
-            class="h-9 rounded-md px-4 transition-colors"
-            :class="draft.groupId === g.id ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
-            :style="{ font: 'var(--font-body)' }"
-            @click="draft.groupId = g.id"
-          >
-            {{ g.name }}
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- Bottom bar: the keypad (while entering the amount) sits above the action buttons. -->

@@ -80,6 +80,9 @@ export interface Group {
   name: string
   memberIds: string[]
   createdAt: string
+  /** Set when the user files the group away (e.g. the trip is over and settled). Purely a
+   * display state: debts still live on people, so an archived group changes no balance. */
+  archivedAt?: string
   deletedAt?: string
 }
 
