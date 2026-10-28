@@ -23,13 +23,14 @@ import {
   FolderOpen,
   Trash2,
   X,
+  Mic,
 } from '@lucide/vue'
 
 import MemberAvatar from '@/components/ui/MemberAvatar.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
 import FormRow from '@/components/tx/FormRow.vue'
 import NumberPad from '@/components/tx/NumberPad.vue'
-import { useTransactionDraft } from '@/components/tx/useTransactionDraft'
+import { takeHandedOffDraft, useTransactionDraft } from '@/components/tx/useTransactionDraft'
 import { toCents } from '@/core/money'
 import { MAX_MEMBERS, type Category } from '@/core/types'
 import { useLedgerStore } from '@/stores/ledger'
@@ -252,6 +253,13 @@ watch(
       }
       return
     }
+    // 「改用表單」 from a parsed voice/text card hands over its draft as-is (spec §3.2).
+    const handed = takeHandedOffDraft()
+    if (handed) {
+      draft.value = handed
+      amountStr.value = handed.amount > 0 ? String(handed.amount / 100) : ''
+      return
+    }
     // Entry points on the 分帳 page open the form already in split mode, optionally
     // inside a group (spec §3.3).
     if (route.query.split === '1') draft.value.isSplit = true
@@ -325,13 +333,24 @@ async function remove() {
       <h1 class="text-text" :style="{ font: 'var(--font-h2)' }">
         {{ props.id ? '編輯記帳' : '新增記帳' }}
       </h1>
-      <button
-        class="px-2 text-sage-700"
-        :style="{ font: 'var(--font-body-strong)' }"
-        @click="save()"
-      >
-        儲存
-      </button>
+      <div class="flex items-center">
+        <!-- Switch to saying it instead (spec §3.2.2). Only for a new entry. -->
+        <button
+          v-if="!props.id"
+          class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
+          aria-label="用說的記帳"
+          @click="router.replace({ name: 'tx-quick' })"
+        >
+          <Mic :size="20" />
+        </button>
+        <button
+          class="px-2 text-sage-700"
+          :style="{ font: 'var(--font-body-strong)' }"
+          @click="save()"
+        >
+          儲存
+        </button>
+      </div>
     </header>
 
     <!-- 支出 / 收入 underline tabs -->
@@ -616,7 +635,9 @@ async function remove() {
     <!-- Bottom bar: the keypad (while entering the amount) sits above the action buttons. -->
     <div class="sticky bottom-0 -mx-4 bg-bg">
       <NumberPad v-if="showKeypad" v-model="amountStr" />
-      <div class="flex flex-col gap-2 border-t border-border px-4 py-3">
+      <div
+        class="flex flex-col gap-2 border-t border-border px-4 pt-3 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))]"
+      >
         <div class="flex gap-2">
           <button v-if="!props.id" class="btn-secondary flex-1" @click="save(true)">
             儲存並再記一筆

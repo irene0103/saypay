@@ -12,7 +12,7 @@ const toast = useToastStore()
   <Transition name="toast">
     <div
       v-if="toast.current"
-      class="fixed inset-x-4 bottom-20 z-60 mx-auto flex max-w-[440px] items-center justify-between gap-3 rounded-md bg-text px-4 py-3 text-white shadow-pop md:bottom-6"
+      class="fixed inset-x-4 bottom-[calc(5rem_+_env(safe-area-inset-bottom))] z-60 mx-auto flex max-w-[440px] items-center justify-between gap-3 rounded-md bg-text px-4 py-3 text-white shadow-pop md:bottom-6"
       role="status"
     >
       <span :style="{ font: 'var(--font-body)' }">{{ toast.current.message }}</span>

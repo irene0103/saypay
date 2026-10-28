@@ -27,7 +27,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
       @click.self="emit('close')"
     >
       <div
-        class="w-full max-w-[440px] rounded-t-lg bg-surface p-4 shadow-pop sm:rounded-lg"
+        class="w-full max-w-[440px] rounded-t-lg bg-surface p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] shadow-pop sm:rounded-lg sm:pb-4"
         role="dialog"
         aria-modal="true"
       >

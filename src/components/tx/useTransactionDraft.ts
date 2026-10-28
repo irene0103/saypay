@@ -218,3 +218,20 @@ export function useTransactionDraft(selfId: () => string) {
 function shareOf(splits: SplitItem[], member: string): Cents {
   return splits.find((s) => s.member === member)?.shareAmount ?? 0
 }
+
+/**
+ * One-shot handoff from the 1e parse card to the 1d form (spec §3.2: two renderings of one
+ * draft — switching to the form must not lose what was parsed). Module-level rather than in
+ * the URL, because a draft can carry a split and a note that don't belong in a query string.
+ */
+let handedOff: TransactionDraft | null = null
+
+export function handOffDraft(d: TransactionDraft) {
+  handedOff = d
+}
+
+export function takeHandedOffDraft(): TransactionDraft | null {
+  const d = handedOff
+  handedOff = null
+  return d
+}

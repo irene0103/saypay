@@ -37,6 +37,11 @@ const routes: RouteRecordRaw[] = [
       },
       { path: 'tx/new', name: 'tx-new', component: () => import('@/pages/TransactionEditPage.vue') },
       {
+        path: 'tx/quick',
+        name: 'tx-quick',
+        component: () => import('@/pages/QuickEntryPage.vue'),
+      },
+      {
         path: 'tx/:id',
         name: 'tx-edit',
         component: () => import('@/pages/TransactionEditPage.vue'),

@@ -39,7 +39,9 @@ const isActive = (name: string) => route.name === name
 
 // The entry form is a full-screen page (its own ✕ / 儲存 header and a bottom keypad), so
 // the app chrome — bottom tab and its content padding — must get out of the way.
-const isEntryPage = computed(() => route.name === 'tx-new' || route.name === 'tx-edit')
+const isEntryPage = computed(() =>
+  ['tx-new', 'tx-edit', 'tx-quick'].includes(String(route.name)),
+)
 </script>
 
 <template>
@@ -75,7 +77,12 @@ const isEntryPage = computed(() => route.name === 'tx-new' || route.name === 'tx
 
     <!-- Content -->
     <main class="mx-auto w-full flex-1" :style="{ maxWidth: 'var(--content-max)' }">
-      <div class="px-4 pt-4" :class="isEntryPage ? 'pb-0' : 'pb-24 md:pb-8'">
+      <!-- Safe-area insets keep content clear of the notch and the home indicator on iPhone
+           (they're 0 elsewhere). The bottom pad clears the fixed tab bar plus that inset. -->
+      <div
+        class="px-4 pt-[calc(1rem_+_env(safe-area-inset-top))]"
+        :class="isEntryPage ? 'pb-0' : 'pb-[calc(6rem_+_env(safe-area-inset-bottom))] md:pb-8'"
+      >
         <RouterView />
       </div>
     </main>
