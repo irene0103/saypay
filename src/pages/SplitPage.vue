@@ -14,7 +14,7 @@
  */
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Share2, Plus, Trash2, Pencil } from '@lucide/vue'
+import { Share2, Plus, Trash2, Pencil, Archive, ArchiveRestore, ChevronDown } from '@lucide/vue'
 
 import AppCard from '@/components/ui/AppCard.vue'
 import MoneyText from '@/components/ui/MoneyText.vue'
@@ -99,9 +99,27 @@ const groupCards = computed(() =>
         subtotal,
         count: txs.length,
         members: g.memberIds.flatMap((id) => memberById.value.get(id) ?? []),
+        settled: txs.length > 0 && g.memberIds.every((id) => !owingIds.value.has(id)),
       }
     }),
 )
+
+/**
+ * People I still have an open balance with (the 1g rows). A group whose members are all
+ * outside this set is "settled" in the only sense that exists here — its subtotal never
+ * drops (settlements aren't group-scoped, spec §3.3.2), so this is what tells the user the
+ * trip is done and can be archived.
+ */
+const owingIds = computed(() => new Set(ledger.balances.perPerson.map((p) => p.member)))
+
+const activeGroupCards = computed(() => groupCards.value.filter((g) => !g.group.archivedAt))
+const archivedGroupCards = computed(() => groupCards.value.filter((g) => g.group.archivedAt))
+const showArchived = ref(false)
+
+async function setArchived(id: string, archived: boolean) {
+  await ledger.setGroupArchived(id, archived)
+  toast.show(archived ? '已封存群組' : '已取消封存')
+}
 
 // ---- Settle up (spec §3.3.3) ----
 const settling = ref<Row | null>(null)
@@ -234,8 +252,13 @@ async function confirmNewGroupMember() {
 async function commitGroup() {
   const name = groupName.value.trim()
   if (!name) return
-  // Editing reuses the same id so saveGroup upserts; creating mints a new one.
+  // Editing reuses the same id so saveGroup upserts; creating mints a new one. Spread the
+  // stored row first so fields this dialog doesn't edit (archivedAt) survive.
+  const prev = editingGroup.value
+    ? ledger.groups.find((g) => g.id === editingGroup.value!.id)
+    : undefined
   await ledger.saveGroup({
+    ...prev,
     id: editingGroup.value?.id ?? crypto.randomUUID(),
     name,
     memberIds: [...groupMemberIds.value],
@@ -253,7 +276,7 @@ async function confirmDeleteGroup() {
 
 // Tapping a group card opens its transaction list (spec §3.3.2 — the group is a view over
 // its transactions).
-const viewingGroup = ref<{ id: string; name: string } | null>(null)
+const viewingGroup = ref<{ id: string; name: string; archived?: boolean } | null>(null)
 const groupTransactions = computed(() =>
   viewingGroup.value
     ? ledger.liveTransactions
@@ -270,6 +293,15 @@ const personTransactions = computed(() =>
       )
     : [],
 )
+
+/**
+ * Record a split bill straight from here, so splitting never means detouring through the
+ * ledger. From inside a group the form opens with that group's members already filled in.
+ */
+function addSplitTx(groupId?: string) {
+  viewingGroup.value = null
+  router.push({ name: 'tx-new', query: groupId ? { split: '1', group: groupId } : { split: '1' } })
+}
 
 /** Leave any open detail dialog and go edit the transaction. */
 function editTx(id: string) {
@@ -294,6 +326,9 @@ function share() {
         @click="openCreateGroup"
       >
         <Plus :size="18" /> 群組
+      </button>
+      <button v-else class="btn-ghost !h-9 !px-2 text-sage-700" @click="addSplitTx()">
+        <Plus :size="18" /> 記一筆分帳
       </button>
     </header>
 
@@ -395,7 +430,7 @@ function share() {
     <!-- 1h groups -->
     <template v-else>
       <div class="flex flex-col gap-3">
-        <article v-for="g in groupCards" :key="g.group.id" class="card">
+        <article v-for="g in activeGroupCards" :key="g.group.id" class="card">
           <div class="flex items-start justify-between gap-2">
             <h2 class="min-w-0 flex-1 truncate text-text" :style="{ font: 'var(--font-h2)' }">
               {{ g.group.name }}
@@ -407,6 +442,13 @@ function share() {
               @click="openEditGroup(g.group)"
             >
               <Pencil :size="16" />
+            </button>
+            <button
+              class="shrink-0 text-text-tertiary hover:text-sage-700"
+              aria-label="封存群組"
+              @click="setArchived(g.group.id, true)"
+            >
+              <Archive :size="16" />
             </button>
             <button
               class="shrink-0 text-text-tertiary hover:text-payable"
@@ -426,11 +468,76 @@ function share() {
             </span>
             <span class="text-sage-700" :style="{ font: 'var(--font-caption)' }">看明細 ›</span>
           </button>
+          <!-- The subtotal above never drops after settling (spec §3.3.2), so say it here. -->
+          <div
+            v-if="g.settled"
+            class="mt-3 flex items-center gap-2 rounded-md bg-surface-alt px-3 py-2"
+          >
+            <span class="flex-1 text-text-secondary" :style="{ font: 'var(--font-caption)' }">
+              成員都已結清
+            </span>
+            <button
+              class="text-sage-700"
+              :style="{ font: 'var(--font-caption)' }"
+              @click="setArchived(g.group.id, true)"
+            >
+              封存這個群組
+            </button>
+          </div>
         </article>
 
         <button class="btn-secondary w-full" @click="openCreateGroup">
           <Plus :size="20" /> 建立群組（旅遊 / 聚餐 / 室友…）
         </button>
+
+        <!-- Archived: filed away, closed for new entries, still browsable and restorable. -->
+        <template v-if="archivedGroupCards.length">
+          <button
+            class="flex items-center gap-1 self-start text-text-secondary"
+            :style="{ font: 'var(--font-label)' }"
+            @click="showArchived = !showArchived"
+          >
+            已封存（{{ archivedGroupCards.length }}）
+            <ChevronDown
+              :size="16"
+              class="transition-transform"
+              :class="showArchived ? 'rotate-180' : ''"
+            />
+          </button>
+          <template v-if="showArchived">
+            <article
+              v-for="g in archivedGroupCards"
+              :key="g.group.id"
+              class="card flex items-center gap-2"
+            >
+              <button
+                class="min-w-0 flex-1 text-left"
+                @click="viewingGroup = { id: g.group.id, name: g.group.name, archived: true }"
+              >
+                <p class="truncate text-text-secondary" :style="{ font: 'var(--font-body-strong)' }">
+                  {{ g.group.name }}
+                </p>
+                <p class="text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+                  {{ g.count }} 筆記錄 · 看明細 ›
+                </p>
+              </button>
+              <button
+                class="shrink-0 text-text-tertiary hover:text-sage-700"
+                aria-label="取消封存"
+                @click="setArchived(g.group.id, false)"
+              >
+                <ArchiveRestore :size="16" />
+              </button>
+              <button
+                class="shrink-0 text-text-tertiary hover:text-payable"
+                aria-label="刪除群組"
+                @click="deletingGroup = { id: g.group.id, name: g.group.name }"
+              >
+                <Trash2 :size="16" />
+              </button>
+            </article>
+          </template>
+        </template>
       </div>
     </template>
 
@@ -588,6 +695,11 @@ function share() {
           <TransactionRow :tx="t" />
         </button>
       </div>
+      <template v-if="!viewingGroup.archived" #footer>
+        <button class="btn-primary flex-1" @click="addSplitTx(viewingGroup.id)">
+          <Plus :size="18" /> 在此群組記一筆
+        </button>
+      </template>
     </SplitDialog>
 
     <!-- Person detail: the split bills between me and them -->

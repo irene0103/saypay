@@ -278,6 +278,20 @@ export const useLedgerStore = defineStore('ledger', () => {
   }
 
   /**
+   * Archive / unarchive (spec §3.3.2). The group's transactions and every balance are left
+   * alone — debt hangs off people, so filing a group away can't settle or hide any of it.
+   */
+  async function setGroupArchived(id: string, archived: boolean) {
+    const row = groups.value.find((g) => g.id === id)
+    if (!row) return
+    // plain() drops an undefined key, so unarchiving removes the field rather than nulling it.
+    const next = plain({ ...row, archivedAt: archived ? new Date().toISOString() : undefined })
+    await db.groups.put(next)
+    upsertLocal(groups, next)
+    await enqueue('groups', id, 'upsert')
+  }
+
+  /**
    * Deleting a group keeps its transactions (their groupId is cleared) and revokes any of
    * its share links (spec §3.6). Share links aren't built yet, so only the first two apply.
    */
@@ -364,6 +378,7 @@ export const useLedgerStore = defineStore('ledger', () => {
     deleteMember,
     saveBudget,
     saveGroup,
+    setGroupArchived,
     deleteGroup,
     $reset,
   }

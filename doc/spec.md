@@ -313,6 +313,15 @@ Step 1 記帳 → Step 2 分帳。Header 顯示 `分帳 (2/2)` 與 `完成`。
 - **結清入口只存在於 1g**；群組頁點人員 → 跳轉 1g 對應列
 - **群組沒有預算。** 預算僅存在於個人月預算（§3.5）
 
+**封存**
+
+群組卡淨額不扣結清，所以旅程結束、錢都還清後，卡片仍會顯示原本的小計。封存就是用來收起這種已經結束的群組。
+
+- 群組內每位成員與我的 pairwise 淨額都歸零時（即都不在 1g 列表中），群組卡顯示 `成員都已結清 · 封存這個群組`
+- 封存**只改顯示**：不動交易、不動任何餘額。未結清也可以封存，欠款照樣在 1g
+- 已封存群組收進群組頁底部的 `已封存（N）`，可看明細、取消封存、刪除
+- 已封存群組**不能再選來記新的一筆**；原本就屬於它的交易，編輯時仍保留該群組
+
 #### 3.3.3 結清規則
 
 結清為**獨立的 ledger entry**，不修改原始交易。
@@ -940,7 +949,7 @@ type Settlement = {
 ### 4.6 其他
 
 ```ts
-type Group    = { id: string; name: string; memberIds: string[]; createdAt: string }
+type Group    = { id: string; name: string; memberIds: string[]; createdAt: string; archivedAt?: string }
 
 type Category = {
   id: string
@@ -1373,6 +1382,7 @@ performance.mark('calc-end')
 | 43 | **結清終態頁保留期** | **永久**（收據慣例）。不含金額，成本僅一列記錄 | §3.11 |
 | 44 | **登出** | 必要功能。已綁定者正常登出、匿名者強制先匯出。**登出須完整清除本地**（含 Cache / SW） | §3.12 L0 |
 | 45 | **投影表 / splits 正規化** | **皆不預建**。derived 表 migration 成本趨近零，延後無代價 | §6.3.3 |
+| 46 | **已結束的群組** | **封存**（`Group.archivedAt`），不改淨額算法、Settlement 仍不記 `groupId`。成員皆結清時提示封存 | §3.3.2 |
 
 ---
 

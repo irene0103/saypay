@@ -9,7 +9,7 @@
  */
 import { computed, ref } from 'vue'
 
-import { computeSplits } from '@/core/split'
+import { computeSplits, fillRemaining } from '@/core/split'
 import { toCents } from '@/core/money'
 import { MAX_MEMBERS, type Cents, type SplitItem, type SplitType, type Transaction, type TxType } from '@/core/types'
 
@@ -142,7 +142,8 @@ export function useTransactionDraft(selfId: () => string) {
   /**
    * "儲存並再記一筆" (spec §3.2.1): keep category / members / paidBy, clear amount and note.
    * The split toggle is deliberately NOT remembered — carrying it over is how a personal
-   * coffee silently becomes a split bill.
+   * coffee silently becomes a split bill. The exception is a group: entering a trip's bills
+   * one after another is the whole point of the group, so the group and the toggle stay.
    */
   function resetForNext() {
     const d = draft.value
@@ -151,8 +152,28 @@ export function useTransactionDraft(selfId: () => string) {
       category: d.category,
       members: [...d.members],
       paidBy: d.paidBy,
-      isSplit: false,
+      isSplit: d.groupId ? d.isSplit : false,
+      groupId: d.groupId,
     }
+  }
+
+  /**
+   * 「剩餘自動分攤」 (spec §3.2.1) on a custom split: members left blank share what the
+   * typed amounts don't cover. Returns false when there's nothing to fill.
+   */
+  function fillRemainingCustom(): boolean {
+    const d = draft.value
+    if (d.splitType !== 'custom' || d.amount <= 0) return false
+    const filled = fillRemaining(
+      d.amount,
+      d.paidBy,
+      d.members,
+      d.members.map((_, i) => toCents(d.values[i] || 0)),
+    )
+    if (!filled) return false
+    // values are edited in 元; cents / 100 round-trips exactly through toCents.
+    d.values = filled.map((c) => c / 100)
+    return true
   }
 
   function reset() {
@@ -181,7 +202,17 @@ export function useTransactionDraft(selfId: () => string) {
     }
   }
 
-  return { draft, splits, error, canSave, toTransaction, resetForNext, reset, loadFrom }
+  return {
+    draft,
+    splits,
+    error,
+    canSave,
+    toTransaction,
+    resetForNext,
+    fillRemainingCustom,
+    reset,
+    loadFrom,
+  }
 }
 
 function shareOf(splits: SplitItem[], member: string): Cents {
