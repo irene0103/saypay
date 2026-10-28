@@ -344,7 +344,7 @@ async function remove() {
           <Mic :size="20" />
         </button>
         <button
-          class="px-2 text-sage-700"
+          class="h-10 px-2 text-sage-700"
           :style="{ font: 'var(--font-body-strong)' }"
           @click="save()"
         >
@@ -399,14 +399,14 @@ async function remove() {
         <span class="text-text" :style="{ font: 'var(--font-body)' }">是否分帳</span>
         <span class="flex-1" />
         <button
-          class="h-6 w-11 rounded-pill transition-colors"
+          class="h-7 w-12 shrink-0 rounded-pill transition-colors"
           :class="draft.isSplit ? 'bg-sage-500' : 'bg-border-strong'"
           role="switch"
           :aria-checked="draft.isSplit"
           @click="draft.isSplit = !draft.isSplit"
         >
           <span
-            class="block h-5 w-5 rounded-pill bg-white transition-transform"
+            class="block h-6 w-6 rounded-pill bg-white transition-transform"
             :class="draft.isSplit ? 'translate-x-5.5' : 'translate-x-0.5'"
           />
         </button>
@@ -422,7 +422,7 @@ async function remove() {
         </FormRow>
         <div v-if="activeRow === 'group'" class="flex flex-wrap gap-2 pb-3">
           <button
-            class="h-9 rounded-md px-4 transition-colors"
+            class="h-10 rounded-md px-4 transition-colors"
             :class="!draft.groupId ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
             :style="{ font: 'var(--font-body)' }"
             @click="pickGroup(undefined)"
@@ -432,7 +432,7 @@ async function remove() {
           <button
             v-for="g in liveGroups"
             :key="g.id"
-            class="h-9 rounded-md px-4 transition-colors"
+            class="h-10 rounded-md px-4 transition-colors"
             :class="draft.groupId === g.id ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
             :style="{ font: 'var(--font-body)' }"
             @click="pickGroup(g.id)"
@@ -453,7 +453,7 @@ async function remove() {
           <button
             v-for="c in leafCategories"
             :key="c.id"
-            class="h-9 rounded-md px-4 transition-colors"
+            class="h-10 rounded-md px-4 transition-colors"
             :class="draft.category === c.id ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
             :style="{ font: 'var(--font-body)' }"
             @click="draft.category = c.id"
@@ -463,7 +463,7 @@ async function remove() {
           <input
             v-if="addingCategory"
             v-model="newCategoryName"
-            class="input !h-9 w-32"
+            class="input w-32"
             placeholder="新類別名稱"
             autofocus
             @keyup.enter="confirmNewCategory"
@@ -471,7 +471,7 @@ async function remove() {
           />
           <button
             v-else
-            class="flex h-9 items-center gap-1 rounded-md bg-surface-alt px-3 text-sage-700"
+            class="flex h-10 items-center gap-1 rounded-md bg-surface-alt px-3 text-sage-700"
             :style="{ font: 'var(--font-body)' }"
             @click="addingCategory = true"
           >
@@ -529,7 +529,7 @@ async function remove() {
           <input
             v-if="addingMember"
             v-model="newMemberName"
-            class="input !h-9 w-32"
+            class="input w-32"
             placeholder="新成員名稱"
             autofocus
             @keyup.enter="confirmNewMember"
@@ -537,7 +537,7 @@ async function remove() {
           />
           <button
             v-else
-            class="flex h-9 w-9 items-center justify-center rounded-pill bg-surface-alt text-text-secondary disabled:opacity-40"
+            class="flex h-10 w-10 items-center justify-center rounded-pill bg-surface-alt text-text-secondary disabled:opacity-40"
             :disabled="draft.members.length >= MAX_MEMBERS"
             aria-label="新增成員"
             @click="addingMember = true"
@@ -557,7 +557,7 @@ async function remove() {
             <button
               v-for="s in (['equal', 'custom', 'percentage'] as const)"
               :key="s"
-              class="h-9 flex-1 rounded-md transition-colors"
+              class="h-10 flex-1 rounded-md transition-colors"
               :class="draft.splitType === s ? 'bg-sage-200 text-sage-900' : 'bg-surface-alt text-text-secondary'"
               :style="{ font: 'var(--font-body)' }"
               @click="draft.splitType = s"
@@ -577,7 +577,7 @@ async function remove() {
                 type="number"
                 min="0"
                 inputmode="decimal"
-                class="input money !h-9 w-24 text-right"
+                class="input money w-24 text-right"
                 :placeholder="draft.splitType === 'percentage' ? '%' : '$'"
                 @input="setSplitValue(i, ($event.target as HTMLInputElement).value)"
                 @keydown="blockNegativeKey"
@@ -587,7 +587,7 @@ async function remove() {
 
           <button
             v-if="draft.splitType === 'custom'"
-            class="self-start text-sage-700"
+            class="self-start py-1 text-sage-700"
             :style="{ font: 'var(--font-caption)' }"
             @click="fillRemaining"
           >

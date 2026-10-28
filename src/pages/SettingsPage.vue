@@ -239,21 +239,21 @@ async function confirmRestore() {
       <div class="flex items-center justify-between">
         <span class="text-text" :style="{ font: 'var(--font-body)' }">每日提醒</span>
         <button
-          class="h-6 w-11 rounded-pill transition-colors"
+          class="h-7 w-12 shrink-0 rounded-pill transition-colors"
           :class="reminderOn ? 'bg-sage-500' : 'bg-border-strong'"
           role="switch"
           :aria-checked="reminderOn"
           @click="reminderOn = !reminderOn"
         >
           <span
-            class="block h-5 w-5 rounded-pill bg-white transition-transform"
+            class="block h-6 w-6 rounded-pill bg-white transition-transform"
             :class="reminderOn ? 'translate-x-5.5' : 'translate-x-0.5'"
           />
         </button>
       </div>
       <div v-if="reminderOn" class="mt-3 flex items-center justify-between">
         <span class="text-text-secondary" :style="{ font: 'var(--font-body)' }">提醒時間</span>
-        <input v-model="reminderAt" type="time" class="input !h-9 w-32" />
+        <input v-model="reminderAt" type="time" class="input w-32" />
       </div>
     </AppCard>
 
@@ -261,14 +261,14 @@ async function confirmRestore() {
       <div class="flex items-center justify-between">
         <span class="text-text" :style="{ font: 'var(--font-body)' }">首頁隱藏金額</span>
         <button
-          class="h-6 w-11 rounded-pill transition-colors"
+          class="h-7 w-12 shrink-0 rounded-pill transition-colors"
           :class="hideAmounts ? 'bg-sage-500' : 'bg-border-strong'"
           role="switch"
           :aria-checked="hideAmounts"
           @click="hideAmounts = !hideAmounts"
         >
           <span
-            class="block h-5 w-5 rounded-pill bg-white transition-transform"
+            class="block h-6 w-6 rounded-pill bg-white transition-transform"
             :class="hideAmounts ? 'translate-x-5.5' : 'translate-x-0.5'"
           />
         </button>

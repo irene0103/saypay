@@ -171,7 +171,7 @@ function removeFromSheet() {
           @click="selectedKey = cell.key"
         >
           <span
-            class="flex h-9 w-9 items-center justify-center rounded-pill money transition-colors"
+            class="flex h-10 w-10 items-center justify-center rounded-pill money transition-colors"
             :class="
               selectedKey === cell.key
                 ? 'bg-sage-500 text-white'
@@ -188,21 +188,21 @@ function removeFromSheet() {
       </div>
       <div class="mt-1 flex justify-between">
         <button
-          class="px-2 text-text-tertiary hover:text-text"
+          class="px-3 py-2 text-text-secondary hover:text-text"
           :style="{ font: 'var(--font-caption)' }"
           @click="shiftWeek(-1)"
         >
           ‹ 上週
         </button>
         <button
-          class="px-2 text-text-tertiary hover:text-text"
+          class="px-3 py-2 text-text-secondary hover:text-text"
           :style="{ font: 'var(--font-caption)' }"
           @click="selectedKey = localDayKey(new Date())"
         >
           今天
         </button>
         <button
-          class="px-2 text-text-tertiary hover:text-text"
+          class="px-3 py-2 text-text-secondary hover:text-text"
           :style="{ font: 'var(--font-caption)' }"
           @click="shiftWeek(1)"
         >
@@ -282,7 +282,7 @@ function removeFromSheet() {
           </div>
 
           <button
-            class="flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary hover:bg-surface-alt"
+            class="flex h-10 w-10 items-center justify-center rounded-md text-text-tertiary hover:bg-surface-alt"
             aria-label="更多操作"
             @click="actionTx = t"
           >

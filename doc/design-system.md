@@ -17,7 +17,7 @@
 | 原則 | 具體表現 |
 | --- | --- |
 | 安靜 | 無重陰影、無高飽和色、無漸層。分隔用細線與留白，不用色塊 |
-| 溫暖 | 中性色帶橄欖／米黃底調，連「黑」都是暖黑 `#383830`，非純黑 |
+| 溫暖 | 中性色帶橄欖／米黃底調，連「黑」都是暖黑 `#2A2A23`，非純黑 |
 | 克制 | 一個畫面最多一個重點（hero 金額或主 CTA），其餘皆退為背景 |
 | 線條 | icon 一律線性描邊，不填色。呼應手繪手帳感 |
 | 誠實 | 語意色（欠款紅）也降飽和為陶土色，不用告警式的亮紅 |
@@ -37,10 +37,10 @@
 | `--sage-50` | `#F1F4EA` | 極淺，hover 底色 |
 | `--sage-100` | `#E9EEDD` | **hero 卡片背景**、進度條軌道、選中態底 |
 | `--sage-200` | `#D8E0C7` | 分隔、次要邊框 |
-| `--sage-300` | `#B5C1A7` | CTA 邊框、disabled 綠 |
-| `--sage-500` | `#8A9C74` | **主 CTA 填色**、連結、focus ring |
-| `--sage-700` | `#5A6B47` | CTA hover、強調文字 |
-| `--sage-900` | `#44503A` | **進度條填色**、hero 卡片上的深色數字 |
+| `--sage-300` | `#879673` | CTA 邊框、disabled 綠 |
+| `--sage-500` | `#647A50` | **主 CTA 填色**、連結、focus ring |
+| `--sage-700` | `#4A5A39` | CTA hover、強調文字 |
+| `--sage-900` | `#36402C` | **進度條填色**、hero 卡片上的深色數字 |
 
 ### 1.2 中性色（Warm Neutral）
 
@@ -51,11 +51,11 @@
 | `--bg` | `#FFFFFF` | 頁面背景 |
 | `--surface` | `#FBFBF8` | 卡片背景（與頁面幾乎同色，靠細邊界分隔） |
 | `--surface-alt` | `#F7F6F0` | 列表交替列、輸入框底、次要區塊 |
-| `--border` | `#EAE8DF` | 卡片邊框、分隔線（1px） |
-| `--border-strong` | `#D8D5C8` | 輸入框邊框、需要更明確的分隔 |
-| `--text` | `#383830` | 主文字（暖黑） |
-| `--text-secondary`| `#6B6A5E` | 副標、說明文字 |
-| `--text-tertiary` | `#9A9889` | 佔位符、時間戳、弱化資訊 |
+| `--border` | `#E0DDD1` | 卡片邊框、分隔線（1px） |
+| `--border-strong` | `#8E8B7C` | 輸入框邊框、需要更明確的分隔 |
+| `--text` | `#2A2A23` | 主文字（暖黑） |
+| `--text-secondary`| `#52514A` | 副標、說明文字 |
+| `--text-tertiary` | `#696759` | 佔位符、時間戳、弱化資訊 |
 
 ### 1.3 語意色（Semantic）— 全數降飽和
 
@@ -63,11 +63,11 @@
 
 | Token | Hex | 用途 |
 | --- | --- | --- |
-| `--receivable` | `#5A6B47` | **應收**（別人欠我）＝深鼠尾草綠，正向 |
-| `--payable` | `#B06850` | **應付**（我欠別人）＝陶土紅，非告警 |
-| `--payable-soft` | `#C08870` | 應付的淺色（背景標示） |
-| `--over-budget` | `#B06850` | 預算超支（同陶土，複用） |
-| `--warn` | `#C99A5B` | 預算 80% 預警＝赭黃 |
+| `--receivable` | `#4A5A39` | **應收**（別人欠我）＝深鼠尾草綠，正向 |
+| `--payable` | `#9A5340` | **應付**（我欠別人）＝陶土紅，非告警 |
+| `--payable-soft` | `#B0735C` | 應付的淺色（背景標示） |
+| `--over-budget` | `#9A5340` | 預算超支（同陶土，複用） |
+| `--warn` | `#86601F` | 預算 80% 預警＝赭黃 |
 | `--warn-soft` | `#F0E6D2` | 預警進度條底 |
 
 > **語意對照（呼應 spec §2）**
@@ -120,11 +120,11 @@ MVP **不做深色模式**。文青風的識別高度依賴米白暖底，倉促
 | `--font-display`| 28 / 34 | 600 | 記帳頁輸入金額、預算環中央 % |
 | `--font-h1` | 20 / 28 | 600 | 頁面標題（`分分帳 SayPay`） |
 | `--font-h2` | 17 / 24 | 600 | 卡片標題、區塊標題 |
-| `--font-body` | 15 / 22 | 400 | 內文、列表主文字 |
-| `--font-body-strong` | 15 / 22 | 600 | 列表金額、強調 |
-| `--font-label` | 13 / 18 | 500 | 標籤、按鈕、tab |
-| `--font-caption`| 12 / 16 | 400 | 時間戳、輔助說明、`分帳 · 我的 $200` |
-| `--font-micro` | 11 / 14 | 500 | 徽章數字、eyebrow |
+| `--font-body` | 16 / 24 | 400 | 內文、列表主文字 |
+| `--font-body-strong` | 16 / 24 | 600 | 列表金額、強調 |
+| `--font-label` | 14 / 20 | 500 | 標籤、按鈕、tab |
+| `--font-caption`| 13 / 18 | 400 | 時間戳、輔助說明、`分帳 · 我的 $200` |
+| `--font-micro` | 12 / 16 | 500 | 徽章數字、eyebrow |
 
 **規則**
 - 金額一律 `font-variant-numeric: tabular-nums`
@@ -233,7 +233,7 @@ MVP **不做深色模式**。文青風的識別高度依賴米白暖底，倉促
 
 ```txt
 背景 --sage-100 (#E9EEDD)  ← 唯一帶底色的卡片
-金額 --font-hero / --sage-900 (#44503A) / tabular-nums
+金額 --font-hero / --sage-900 (#36402C) / tabular-nums
 標籤 --font-caption / --text-secondary（"本月支出 MAY"）
 進度條 見 5.6
 ```
@@ -356,12 +356,12 @@ icon 20px 線性 / 標籤 --font-micro
 
 | 項目 | 標準 |
 | --- | --- |
-| 文字對比 | 主文字 `#383830` on `#FFFFFF` = 10.8:1（遠超 AA）。副標 `--text-secondary` ≥ 4.5:1 |
+| 文字對比 | 所有文字 ≥ 4.5:1（AA）：主文字 14.4:1、`--text-secondary` 7.4:1、`--text-tertiary` 4.8:1（含 `--sage-100` 底）、`--payable` 5.7:1、`--warn` 5.7:1、主按鈕白字 4.7:1。輸入框邊、開關關閉狀態（`--border-strong`）≥ 3:1。頭像首字依底色自動選白或深色 |
 | 語意不單靠顏色 | 欠款用「顏色 + 正負號」、超支用「顏色 + 斜紋 + 文字」雙重編碼 |
-| 觸控目標 | 最小 44×44px |
+| 觸控目標 | 最小 44×44px。`base.css` 讓**每個 `<button>`** 的點擊範圍至少 44×44（`::after` 擴張，外觀不變），新按鈕不需另外處理 |
 | Focus 可見 | 所有可互動元素有 2px `--sage-500` focus ring，鍵盤操作可見 |
 | 減少動效 | 全面尊重 `prefers-reduced-motion` |
-| 字級 | 內文最小 15px，輔助資訊最小 11px；尊重系統字級放大 |
+| 字級 | 手機為主：內文 16px，輔助資訊最小 12px；尊重系統字級放大 |
 
 > 低飽和配色的風險是對比不足。**每一組前景／背景都須實測對比度**，尤其 `--text-tertiary` 與 `--warn` 這類淺色，不可用於承載關鍵資訊。
 
@@ -377,27 +377,27 @@ icon 20px 線性 / 標籤 --font-micro
   --sage-50:  #F1F4EA;
   --sage-100: #E9EEDD;
   --sage-200: #D8E0C7;
-  --sage-300: #B5C1A7;
-  --sage-500: #8A9C74;
-  --sage-700: #5A6B47;
-  --sage-900: #44503A;
+  --sage-300: #879673;
+  --sage-500: #647A50;
+  --sage-700: #4A5A39;
+  --sage-900: #36402C;
 
   /* --- Neutral (warm) --- */
   --bg:             #FFFFFF;
   --surface:        #FBFBF8;
   --surface-alt:    #F7F6F0;
-  --border:         #EAE8DF;
-  --border-strong:  #D8D5C8;
-  --text:           #383830;
-  --text-secondary: #6B6A5E;
-  --text-tertiary:  #9A9889;
+  --border:         #E0DDD1;
+  --border-strong:  #8E8B7C;
+  --text:           #2A2A23;
+  --text-secondary: #52514A;
+  --text-tertiary:  #696759;
 
   /* --- Semantic --- */
-  --receivable:   #5A6B47;
-  --payable:      #B06850;
-  --payable-soft: #C08870;
-  --over-budget:  #B06850;
-  --warn:         #C99A5B;
+  --receivable:   #4A5A39;
+  --payable:      #9A5340;
+  --payable-soft: #B0735C;
+  --over-budget:  #9A5340;
+  --warn:         #86601F;
   --warn-soft:    #F0E6D2;
 
   /* --- Chart --- */
@@ -457,11 +457,11 @@ icon 20px 線性 / 標籤 --font-micro
 
 ```txt
 底色    白 #FFFFFF，卡片幾乎同色靠細線分隔
-主色    鼠尾草綠 #8A9C74（CTA）/ #44503A（深）
+主色    鼠尾草綠 #647A50（CTA）/ #36402C（深）
 hero    唯一實色卡片 #E9EEDD
 應收    綠 +$   應付    陶土 −$（不是亮紅）
-超支    陶土 #B06850   預警    赭黃 #C99A5B
-文字    暖黑 #383830（非純黑）
+超支    陶土 #9A5340   預警    赭黃 #86601F
+文字    暖黑 #2A2A23（非純黑）
 數字    等寬 tabular-nums，獨立字體
 icon    線性描邊 1.75，不填色
 圓角    卡片 16 / 輸入 12 / chip 8

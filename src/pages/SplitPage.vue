@@ -322,12 +322,12 @@ function share() {
       <h1 class="text-text" :style="{ font: 'var(--font-h1)' }">分帳</h1>
       <button
         v-if="tab === 'groups'"
-        class="btn-ghost !h-9 !px-2 text-sage-700"
+        class="btn-ghost !px-2 text-sage-700"
         @click="openCreateGroup"
       >
         <Plus :size="18" /> 群組
       </button>
-      <button v-else class="btn-ghost !h-9 !px-2 text-sage-700" @click="addSplitTx()">
+      <button v-else class="btn-ghost !px-2 text-sage-700" @click="addSplitTx()">
         <Plus :size="18" /> 記一筆分帳
       </button>
     </header>
@@ -354,7 +354,7 @@ function share() {
       <button
         v-for="t in (['people', 'groups'] as const)"
         :key="t"
-        class="h-7 rounded-sm px-3 transition-colors"
+        class="h-9 rounded-sm px-4 transition-colors"
         :class="tab === t ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
         :style="{ font: 'var(--font-label)' }"
         @click="tab = t"
@@ -369,7 +369,7 @@ function share() {
         <button
           v-for="f in FILTERS"
           :key="f.key"
-          class="h-7 rounded-sm px-3 transition-colors"
+          class="h-9 rounded-sm px-4 transition-colors"
           :class="
             filter === f.key ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'
           "
@@ -389,7 +389,7 @@ function share() {
           目前沒有未結清的款項
         </p>
         <div v-else class="divide-y divide-border">
-          <div v-for="row in visibleRows" :key="row.member.id" class="flex items-center gap-3 py-3">
+          <div v-for="row in visibleRows" :key="row.member.id" class="flex items-center gap-2 py-3">
             <button
               class="flex min-w-0 flex-1 items-center gap-3 text-left"
               @click="viewingPerson = row.member"
@@ -403,18 +403,18 @@ function share() {
                      clips: the amount beside it is already dual-encoded with a sign and a
                      colour (design-system.md §5.7). -->
                 <p class="truncate text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
-                  {{ row.net > 0 ? '他欠你' : '你欠他' }} · {{ row.count }} 筆記錄 ›
+                  {{ row.net > 0 ? '他欠你' : '你欠他' }} · {{ row.count }} 筆 ›
                 </p>
               </div>
             </button>
 
             <MoneyText :cents="row.net" tone="signed" size="strong" class="shrink-0" />
 
-            <button class="btn-secondary shrink-0 !h-8 !px-3" @click="openSettle(row)">
+            <button class="btn-secondary shrink-0 !h-10 !px-3" @click="openSettle(row)">
               結清
             </button>
             <button
-              class="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
+              class="flex h-10 w-8 shrink-0 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
               aria-label="分享"
               @click="share"
             >
@@ -437,21 +437,21 @@ function share() {
             </h2>
             <MoneyText :cents="g.subtotal" tone="signed" size="strong" class="shrink-0" />
             <button
-              class="shrink-0 text-text-tertiary hover:text-sage-700"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md -my-2 text-text-tertiary hover:text-sage-700"
               aria-label="編輯群組"
               @click="openEditGroup(g.group)"
             >
               <Pencil :size="16" />
             </button>
             <button
-              class="shrink-0 text-text-tertiary hover:text-sage-700"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md -my-2 text-text-tertiary hover:text-sage-700"
               aria-label="封存群組"
               @click="setArchived(g.group.id, true)"
             >
               <Archive :size="16" />
             </button>
             <button
-              class="shrink-0 text-text-tertiary hover:text-payable"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md -my-2 text-text-tertiary hover:text-payable"
               aria-label="刪除群組"
               @click="deletingGroup = { id: g.group.id, name: g.group.name }"
             >
@@ -493,7 +493,7 @@ function share() {
         <!-- Archived: filed away, closed for new entries, still browsable and restorable. -->
         <template v-if="archivedGroupCards.length">
           <button
-            class="flex items-center gap-1 self-start text-text-secondary"
+            class="flex items-center gap-1 self-start py-2 text-text-secondary"
             :style="{ font: 'var(--font-label)' }"
             @click="showArchived = !showArchived"
           >
@@ -522,14 +522,14 @@ function share() {
                 </p>
               </button>
               <button
-                class="shrink-0 text-text-tertiary hover:text-sage-700"
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md -my-2 text-text-tertiary hover:text-sage-700"
                 aria-label="取消封存"
                 @click="setArchived(g.group.id, false)"
               >
                 <ArchiveRestore :size="16" />
               </button>
               <button
-                class="shrink-0 text-text-tertiary hover:text-payable"
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md -my-2 text-text-tertiary hover:text-payable"
                 aria-label="刪除群組"
                 @click="deletingGroup = { id: g.group.id, name: g.group.name }"
               >
@@ -604,7 +604,7 @@ function share() {
           </div>
           <MoneyText :cents="s.amount" size="strong" />
           <button
-            class="text-text-tertiary hover:text-payable"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-text-tertiary hover:text-payable"
             aria-label="刪除結清記錄"
             @click="removeSettlement(s.id)"
           >
@@ -632,7 +632,7 @@ function share() {
         <button
           v-for="m in ledger.liveMembers"
           :key="m.id"
-          class="flex items-center gap-1 rounded-pill p-1 pr-2 transition-colors"
+          class="flex items-center gap-1 rounded-pill p-1.5 pr-3 transition-colors"
           :class="groupMemberIds.includes(m.id) ? 'bg-sage-200' : 'bg-surface-alt'"
           @click="toggleGroupMember(m.id)"
         >
@@ -643,7 +643,7 @@ function share() {
         <input
           v-if="addingGroupMember"
           v-model="newGroupMemberName"
-          class="input !h-8 w-28"
+          class="input w-28"
           placeholder="新成員名稱"
           autofocus
           @keyup.enter="confirmNewGroupMember"
@@ -651,7 +651,7 @@ function share() {
         />
         <button
           v-else
-          class="flex h-8 items-center gap-1 rounded-pill bg-surface-alt px-3 text-sage-700"
+          class="flex h-10 items-center gap-1 rounded-pill bg-surface-alt px-3 text-sage-700"
           :style="{ font: 'var(--font-caption)' }"
           @click="addingGroupMember = true"
         >

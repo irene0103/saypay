@@ -138,11 +138,11 @@ async function remove(id: string) {
         <template v-if="editingId === node.parent.id">
           <input
             v-model="editName"
-            class="input h-9 flex-1"
+            class="input flex-1"
             autofocus
             @keyup.enter="commitRename(node.parent)"
           />
-          <button class="text-sage-700" aria-label="完成" @click="commitRename(node.parent)">
+          <button class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sage-700" aria-label="完成" @click="commitRename(node.parent)">
             <Check :size="18" />
           </button>
         </template>
@@ -155,7 +155,7 @@ async function remove(id: string) {
             {{ node.parent.name }}
           </button>
           <button
-            class="text-text-tertiary hover:text-payable"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-text-tertiary hover:text-payable"
             aria-label="刪除分類"
             @click="remove(node.parent.id)"
           >
@@ -175,11 +175,11 @@ async function remove(id: string) {
           <template v-if="editingId === child.id">
             <input
               v-model="editName"
-              class="input h-8 flex-1"
+              class="input flex-1"
               autofocus
               @keyup.enter="commitRename(child)"
             />
-            <button class="text-sage-700" aria-label="完成" @click="commitRename(child)">
+            <button class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sage-700" aria-label="完成" @click="commitRename(child)">
               <Check :size="16" />
             </button>
           </template>
@@ -192,7 +192,7 @@ async function remove(id: string) {
               {{ child.name }}
             </button>
             <button
-              class="text-text-tertiary hover:text-payable"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-text-tertiary hover:text-payable"
               aria-label="刪除子分類"
               @click="remove(child.id)"
             >
@@ -205,21 +205,21 @@ async function remove(id: string) {
         <div v-if="adding?.parentId === node.parent.id" class="flex items-center gap-2 py-1">
           <input
             v-model="draftName"
-            class="input h-8 flex-1"
+            class="input flex-1"
             placeholder="子分類名稱"
             autofocus
             @keyup.enter="commitAdd"
           />
-          <button class="text-sage-700" aria-label="新增" @click="commitAdd">
+          <button class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sage-700" aria-label="新增" @click="commitAdd">
             <Check :size="16" />
           </button>
-          <button class="text-text-tertiary" aria-label="取消" @click="adding = null">
+          <button class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-text-tertiary" aria-label="取消" @click="adding = null">
             <X :size="16" />
           </button>
         </div>
         <button
           v-else
-          class="flex items-center gap-1 py-1 text-sage-700"
+          class="flex items-center gap-1 py-2 text-sage-700"
           :style="{ font: 'var(--font-label)' }"
           @click="startAdd(node.parent.id)"
         >

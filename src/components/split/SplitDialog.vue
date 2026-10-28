@@ -34,7 +34,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
         <header class="mb-4 flex items-center justify-between">
           <h2 class="text-text" :style="{ font: 'var(--font-h2)' }">{{ title }}</h2>
           <button
-            class="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
+            class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
             aria-label="關閉"
             @click="emit('close')"
           >

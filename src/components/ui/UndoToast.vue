@@ -18,7 +18,7 @@ const toast = useToastStore()
       <span :style="{ font: 'var(--font-body)' }">{{ toast.current.message }}</span>
       <button
         v-if="toast.current.undo"
-        class="shrink-0 text-sage-300"
+        class="shrink-0 px-2 text-sage-200"
         :style="{ font: 'var(--font-body-strong)' }"
         @click="toast.runUndo()"
       >
