@@ -11,10 +11,11 @@
  */
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Menu, Search, Bell, Sprout, Plus, MoreVertical, Mic } from '@lucide/vue'
+import { Menu, Search, Bell, Sprout, Plus, MoreVertical, Mic, Pencil, Trash2 } from '@lucide/vue'
 
 import MoneyText from '@/components/ui/MoneyText.vue'
 import CategoryIcon from '@/components/ledger/CategoryIcon.vue'
+import SplitDialog from '@/components/split/SplitDialog.vue'
 import { localDayKey, myShare } from '@/core/stats'
 import { useLedgerStore } from '@/stores/ledger'
 import { useToastStore } from '@/stores/toast'
@@ -103,6 +104,19 @@ function edit(id: string) {
 async function removeTx(id: string) {
   const tombstoned = await ledger.softDeleteTransaction(id)
   if (tombstoned) toast.show('已刪除', () => ledger.restoreTransaction(tombstoned.id))
+}
+
+// The ⋮ on a row opens a sheet of actions — it must never delete on a single tap.
+const actionTx = ref<Transaction | null>(null)
+function editFromSheet() {
+  const t = actionTx.value
+  actionTx.value = null
+  if (t) edit(t.id)
+}
+function removeFromSheet() {
+  const t = actionTx.value
+  actionTx.value = null
+  if (t) removeTx(t.id)
 }
 </script>
 
@@ -268,9 +282,9 @@ async function removeTx(id: string) {
           </div>
 
           <button
-            class="flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary hover:bg-surface-alt hover:text-payable"
-            aria-label="刪除"
-            @click="removeTx(t.id)"
+            class="flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary hover:bg-surface-alt"
+            aria-label="更多操作"
+            @click="actionTx = t"
           >
             <MoreVertical :size="18" />
           </button>
@@ -297,5 +311,22 @@ async function removeTx(id: string) {
         </button>
       </div>
     </div>
+
+    <!-- Row actions -->
+    <SplitDialog v-if="actionTx" :title="actionTx.title" @close="actionTx = null">
+      <p class="-mt-2 mb-3 text-text-tertiary" :style="{ font: 'var(--font-caption)' }">
+        {{ subtitle(actionTx) }} ·
+        <MoneyText :cents="actionTx.amount" size="caption" class="!text-text-tertiary" />
+      </p>
+      <div class="flex flex-col gap-2">
+        <button class="btn-secondary w-full" @click="editFromSheet">
+          <Pencil :size="18" /> 編輯
+        </button>
+        <button class="btn-danger w-full" @click="removeFromSheet">
+          <Trash2 :size="18" /> 刪除
+        </button>
+        <button class="btn-ghost w-full" @click="actionTx = null">取消</button>
+      </div>
+    </SplitDialog>
   </div>
 </template>
