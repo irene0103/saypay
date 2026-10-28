@@ -150,7 +150,7 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
     <AppCard>
       <div class="flex items-center justify-between">
         <button
-          class="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
+          class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
           aria-label="上個月"
           @click="shiftMonth(-1)"
         >
@@ -158,7 +158,7 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
         </button>
         <span class="text-text" :style="{ font: 'var(--font-h2)' }">{{ ledger.currentMonth }}</span>
         <button
-          class="flex h-8 w-8 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
+          class="flex h-10 w-10 items-center justify-center rounded-md text-text-secondary hover:bg-surface-alt"
           aria-label="下個月"
           @click="shiftMonth(1)"
         >
@@ -187,7 +187,7 @@ const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
       <button
         v-for="v in (['list', 'calendar'] as const)"
         :key="v"
-        class="h-7 rounded-sm px-3 transition-colors"
+        class="h-9 rounded-sm px-4 transition-colors"
         :class="view === v ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
         :style="{ font: 'var(--font-label)' }"
         @click="view = v"

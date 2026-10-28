@@ -179,7 +179,7 @@ async function saveAll() {
       </button>
       <h1 class="text-text" :style="{ font: 'var(--font-h2)' }">說一筆</h1>
       <button
-        class="px-2 text-sage-700"
+        class="h-10 px-2 text-sage-700"
         :style="{ font: 'var(--font-body-strong)' }"
         @click="openInForm()"
       >
@@ -227,7 +227,7 @@ async function saveAll() {
         <div class="flex items-center gap-2">
           <input
             v-model="card.draft.title"
-            class="input !h-9 min-w-0 flex-1"
+            class="input min-w-0 flex-1"
             placeholder="名稱（選填）"
           />
           <span class="text-text-tertiary">$</span>
@@ -236,7 +236,7 @@ async function saveAll() {
             type="number"
             min="0"
             inputmode="decimal"
-            class="input money !h-9 w-24 text-right"
+            class="input money w-24 text-right"
             :class="card.draft.type === 'income' ? 'text-receivable' : ''"
             @input="setAmount(card, ($event.target as HTMLInputElement).value)"
           />
@@ -252,13 +252,13 @@ async function saveAll() {
           <input
             :value="dateValue(card)"
             type="date"
-            class="h-8 rounded-sm bg-surface-alt px-2 text-text-secondary"
+            class="h-10 rounded-sm bg-surface-alt px-2 text-text-secondary"
             :class="card.draft.inferred.has('date') ? 'inferred' : ''"
             @change="setDate(card, ($event.target as HTMLInputElement).value)"
           />
           <select
             v-model="card.draft.category"
-            class="h-8 rounded-sm bg-surface-alt px-2 text-text-secondary"
+            class="h-10 rounded-sm bg-surface-alt px-2 text-text-secondary"
             :class="card.draft.inferred.has('category') ? 'inferred' : ''"
             @change="confirmField(card, 'category')"
           >
@@ -292,14 +292,14 @@ async function saveAll() {
           </span>
           <div class="flex shrink-0 items-center gap-1">
             <button
-              class="flex h-8 items-center gap-1 rounded-md px-2 text-sage-700 hover:bg-surface-alt"
+              class="flex h-10 items-center gap-1 rounded-md px-2 text-sage-700 hover:bg-surface-alt"
               :style="{ font: 'var(--font-caption)' }"
               @click="openInForm(card)"
             >
               <SquarePen :size="15" /> 改用表單
             </button>
             <button
-              class="flex h-8 w-8 items-center justify-center rounded-md text-text-tertiary hover:text-payable"
+              class="flex h-10 w-10 items-center justify-center rounded-md text-text-tertiary hover:text-payable"
               aria-label="移除這筆"
               @click="removeCard(card.key)"
             >

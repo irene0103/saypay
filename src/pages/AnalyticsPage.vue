@@ -152,7 +152,7 @@ const trendOption = computed<EChartsOption>(() => ({
       <button
         v-for="b in (['actual', 'spent'] as const)"
         :key="b"
-        class="h-7 rounded-sm px-3 transition-colors"
+        class="h-9 rounded-sm px-4 transition-colors"
         :class="basis === b ? 'bg-sage-100 text-sage-700' : 'bg-surface-alt text-text-secondary'"
         :style="{ font: 'var(--font-label)' }"
         @click="basis = b"

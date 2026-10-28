@@ -72,7 +72,7 @@ export default defineConfig({
     // The one card in the app allowed a solid fill — it is the visual anchor (§5.2).
     'card-hero': 'bg-sage-100 border-none rounded-lg p-4',
     'btn-base':
-      'h-11 px-4 rounded-md inline-flex items-center justify-center gap-2 font-tc text-[13px] font-medium transition-colors disabled:cursor-not-allowed',
+      'h-11 px-4 rounded-md inline-flex items-center justify-center gap-2 font-tc text-[15px] font-medium transition-colors disabled:cursor-not-allowed',
     'btn-primary': 'btn-base bg-sage-500 text-white hover:bg-sage-700 disabled:bg-sage-300',
     'btn-secondary': 'btn-base bg-surface text-sage-700 border border-sage-300 hover:bg-sage-50',
     'btn-ghost': 'btn-base bg-transparent text-text-secondary hover:bg-surface-alt',

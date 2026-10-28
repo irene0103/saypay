@@ -116,11 +116,11 @@ async function remove(m: Member) {
           <template v-if="editingId === m.id">
             <input
               v-model="editName"
-              class="input h-9 flex-1"
+              class="input flex-1"
               autofocus
               @keyup.enter="commitRename(m)"
             />
-            <button class="text-sage-700" aria-label="完成" @click="commitRename(m)">
+            <button class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sage-700" aria-label="完成" @click="commitRename(m)">
               <Check :size="18" />
             </button>
           </template>
@@ -146,7 +146,7 @@ async function remove(m: Member) {
 
             <button
               v-if="!m.isSelf"
-              class="text-text-tertiary hover:text-payable"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-text-tertiary hover:text-payable"
               aria-label="刪除成員"
               @click="remove(m)"
             >

@@ -1,33 +1,34 @@
 /**
  * SayPay design tokens — design-system.md §8
- * Values sampled from the wireframes; do not invent new colours here.
+ * Values sampled from the wireframes, then darkened for contrast on phones (WCAG AA:
+ * 4.5:1 for text, 3:1 for control edges). Each ratio is noted where it was the reason.
  */
 :root {
   /* --- Sage (brand) --- */
   --sage-50: #f1f4ea;
   --sage-100: #e9eedd;
   --sage-200: #d8e0c7;
-  --sage-300: #b5c1a7;
-  --sage-500: #8a9c74;
-  --sage-700: #5a6b47;
-  --sage-900: #44503a;
+  --sage-300: #879673; /* 3:1 on surface — btn-secondary border */
+  --sage-500: #647a50; /* 4.7:1 under white text — primary button, FAB */
+  --sage-700: #4a5a39;
+  --sage-900: #36402c;
 
   /* --- Neutral (warm) --- */
   --bg: #ffffff;
   --surface: #fbfbf8;
   --surface-alt: #f7f6f0;
-  --border: #eae8df;
-  --border-strong: #d8d5c8;
-  --text: #383830;
-  --text-secondary: #6b6a5e;
-  --text-tertiary: #9a9889;
+  --border: #e0ddd1;
+  --border-strong: #8e8b7c; /* 3:1 — input edges, toggle off */
+  --text: #2a2a23;
+  --text-secondary: #52514a;
+  --text-tertiary: #696759; /* 4.8:1 even on sage-100 */
 
   /* --- Semantic --- */
-  --receivable: #5a6b47;
-  --payable: #b06850;
-  --payable-soft: #c08870;
-  --over-budget: #b06850;
-  --warn: #c99a5b;
+  --receivable: #4a5a39;
+  --payable: #9a5340; /* 5.7:1 */
+  --payable-soft: #b0735c;
+  --over-budget: #9a5340;
+  --warn: #86601f; /* 5.7:1 — was 2.5:1 */
   --warn-soft: #f0e6d2;
 
   /* --- Chart --- */
@@ -62,16 +63,17 @@
   --font-tc: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
   --font-en: 'Inter', system-ui, sans-serif;
 
-  /* --- Type scale: size / line-height / weight (design-system.md §2.2) --- */
+  /* --- Type scale: size / line-height / weight (design-system.md §2.2) ---
+     Phone-first: nothing below 12px, body at 16px (also iOS's no-zoom input floor). */
   --font-hero: 600 40px / 44px var(--font-num);
   --font-display: 600 28px / 34px var(--font-num);
   --font-h1: 600 20px / 28px var(--font-tc);
   --font-h2: 600 17px / 24px var(--font-tc);
-  --font-body: 400 15px / 22px var(--font-tc);
-  --font-body-strong: 600 15px / 22px var(--font-tc);
-  --font-label: 500 13px / 18px var(--font-tc);
-  --font-caption: 400 12px / 16px var(--font-tc);
-  --font-micro: 500 11px / 14px var(--font-tc);
+  --font-body: 400 16px / 24px var(--font-tc);
+  --font-body-strong: 600 16px / 24px var(--font-tc);
+  --font-label: 500 14px / 20px var(--font-tc);
+  --font-caption: 400 13px / 18px var(--font-tc);
+  --font-micro: 500 12px / 16px var(--font-tc);
 
   /* --- Layout --- */
   /* Below this the design stops working: the hero amount, the 3-up 應收/淨額/應付 header and

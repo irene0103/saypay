@@ -83,6 +83,24 @@ a {
   stroke-width: 1.75;
 }
 
+/* Every button's touch target is at least 44×44 (Apple HIG), whatever it looks like: a
+   16px icon, a 28px chip or a one-line list label all get the full target, and larger
+   buttons are untouched (max()). Applied to the element, not opt-in, so a new button
+   can't quietly ship too small to tap. A positioning utility class still overrides the
+   `relative` here, since a class outranks an element selector. */
+button {
+  position: relative;
+}
+button::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
 :focus-visible {
   outline: 2px solid var(--sage-500);
   outline-offset: 2px;
