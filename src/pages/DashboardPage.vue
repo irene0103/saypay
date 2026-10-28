@@ -11,7 +11,7 @@
  */
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Menu, Search, Bell, Sprout, Plus, MoreVertical } from '@lucide/vue'
+import { Menu, Search, Bell, Sprout, Plus, MoreVertical, Mic } from '@lucide/vue'
 
 import MoneyText from '@/components/ui/MoneyText.vue'
 import CategoryIcon from '@/components/ledger/CategoryIcon.vue'
@@ -278,9 +278,24 @@ async function removeTx(id: string) {
       </div>
     </section>
 
-    <!-- Add -->
-    <button class="btn-primary w-full !h-12" @click="router.push({ name: 'tx-new' })">
-      <Plus :size="20" /> 新增一筆記帳
-    </button>
+    <!-- Add. On phones it's pinned just above the tab bar so it never scrolls away; the
+         spacer keeps the last row from hiding under it. Tablet keeps it inline. -->
+    <div class="h-14 md:hidden" aria-hidden="true" />
+    <div
+      class="fixed inset-x-0 bottom-[calc(var(--tab-height)_+_env(safe-area-inset-bottom)_+_0.75rem)] z-10 px-4 md:static md:px-0"
+    >
+      <div class="mx-auto flex gap-2" :style="{ maxWidth: 'var(--content-max)' }">
+        <button
+          class="btn-secondary !h-12 shrink-0"
+          aria-label="用說的記帳"
+          @click="router.push({ name: 'tx-quick' })"
+        >
+          <Mic :size="20" /> 說一筆
+        </button>
+        <button class="btn-primary !h-12 flex-1" @click="router.push({ name: 'tx-new' })">
+          <Plus :size="20" /> 新增一筆記帳
+        </button>
+      </div>
+    </div>
   </div>
 </template>
