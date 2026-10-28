@@ -30,6 +30,7 @@ interface Recognition {
   onend: (() => void) | null
   start(): void
   stop(): void
+  abort(): void
 }
 type RecognitionCtor = new () => Recognition
 
@@ -69,31 +70,46 @@ export function useSpeechInput(onText: (heard: string) => void) {
   onBeforeUnmount(() => {
     window.removeEventListener('online', syncOnline)
     window.removeEventListener('offline', syncOnline)
-    rec?.stop()
+    if (rec) discard(rec)
   })
+
+  /** Kill a session outright and make sure none of its late events touch the UI. */
+  function discard(r: Recognition) {
+    r.onresult = r.onerror = r.onend = null
+    try {
+      r.abort()
+    } catch {
+      // Already ended.
+    }
+    if (rec === r) rec = null
+  }
 
   function start() {
     if (!Ctor || listening.value || offline.value) return
+    // A previous session that never reported `end` must not keep writing into the text.
+    if (rec) discard(rec)
     error.value = null
-    rec = new Ctor()
-    rec.lang = 'zh-TW'
-    rec.interimResults = true
-    rec.continuous = true
-    rec.onresult = (e) => {
+    const r = new Ctor()
+    rec = r
+    r.lang = 'zh-TW'
+    r.interimResults = true
+    r.continuous = true
+    r.onresult = (e) => {
       let heard = ''
       for (let i = 0; i < e.results.length; i++) heard += e.results[i]![0].transcript
       onText(heard)
     }
-    rec.onerror = (e) => {
+    r.onerror = (e) => {
       // 'aborted' is our own stop(); not worth a message.
       if (e.error !== 'aborted') error.value = ERRORS[e.error] ?? '聽不清楚，改用打字？'
-    }
-    rec.onend = () => {
       listening.value = false
-      rec = null
+    }
+    r.onend = () => {
+      listening.value = false
+      if (rec === r) rec = null
     }
     try {
-      rec.start()
+      r.start()
       listening.value = true
     } catch {
       error.value = '無法啟動語音，可以改用鍵盤上的麥克風聽寫'
@@ -101,8 +117,24 @@ export function useSpeechInput(onText: (heard: string) => void) {
     }
   }
 
+  /**
+   * Finish on our side immediately. iOS Safari often never fires `end` after stop() in
+   * continuous mode, and waiting for it is what left the mic stuck on 「正在聽」 with a
+   * second tap doing nothing. The session still gets a moment to deliver its final
+   * transcript; if it hasn't ended by then, it's aborted.
+   */
   function stop() {
-    rec?.stop()
+    listening.value = false
+    const r = rec
+    if (!r) return
+    try {
+      r.stop()
+    } catch {
+      // Already ended.
+    }
+    setTimeout(() => {
+      if (rec === r) discard(r)
+    }, 1500)
   }
 
   return { supported, listening, offline, error, start, stop }
